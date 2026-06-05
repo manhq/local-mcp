@@ -5,10 +5,10 @@ import { registerVariableTools } from "./tools/variables.js";
 import { registerImageTools } from "./tools/images.js";
 import { registerComponentTools } from "./tools/components.js";
 
-export function registerFigmaTools(server: McpServer): void {
-  registerFileTools(server);
-  registerCommentTools(server);
-  registerVariableTools(server);
-  registerImageTools(server);
-  registerComponentTools(server);
+export function registerFigmaTools(server: McpServer, prefix?: string): void {
+  registerFileTools(server, prefix);
+  registerCommentTools(server, prefix);
+  registerVariableTools(server, prefix);
+  registerImageTools(server, prefix);
+  registerComponentTools(server, prefix);
 }

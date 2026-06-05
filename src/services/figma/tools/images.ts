@@ -4,13 +4,15 @@ import { getFigmaClient } from "../client.js";
 import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 
-export function registerImageTools(server: McpServer): void {
+export function registerImageTools(server: McpServer, prefix = ""): void {
+  const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
+
   /**
    * Mirrors: get_screenshot
    * Renders one or more nodes to image URLs (PNG/JPG/SVG/PDF).
    */
   server.registerTool(
-    "figma_export_image",
+    p("export_image"),
     {
       description:
         "Export a Figma node as an image and get a temporary download URL. " +
@@ -57,7 +59,7 @@ export function registerImageTools(server: McpServer): void {
    * Get image fills embedded in a file (images used as fill sources).
    */
   server.registerTool(
-    "figma_get_image_fills",
+    p("get_image_fills"),
     {
       description:
         "Get download URLs for all image fills used inside a Figma file. " +

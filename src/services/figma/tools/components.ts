@@ -4,13 +4,15 @@ import { getFigmaClient } from "../client.js";
 import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 
-export function registerComponentTools(server: McpServer): void {
+export function registerComponentTools(server: McpServer, prefix = ""): void {
+  const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
+
   /**
    * Mirrors: get_libraries (file-level components)
    * Lists all published components in a file.
    */
   server.registerTool(
-    "figma_get_components",
+    p("get_components"),
     {
       description:
         "Get all published components in a Figma file. Returns component names, descriptions, and node IDs. " +
@@ -33,7 +35,7 @@ export function registerComponentTools(server: McpServer): void {
    * Get component sets (variants) in a file.
    */
   server.registerTool(
-    "figma_get_component_sets",
+    p("get_component_sets"),
     {
       description:
         "Get all component sets (variant groups) in a Figma file. " +
@@ -56,7 +58,7 @@ export function registerComponentTools(server: McpServer): void {
    * Get styles (colors, text, effects, grids) defined in a file.
    */
   server.registerTool(
-    "figma_get_styles",
+    p("get_styles"),
     {
       description:
         "Get all published styles in a Figma file: color styles, text styles, effect styles, and grid styles. " +
@@ -80,7 +82,7 @@ export function registerComponentTools(server: McpServer): void {
    * Lists all components published across a team's libraries.
    */
   server.registerTool(
-    "figma_get_team_components",
+    p("get_team_components"),
     {
       description:
         "Get all published components across a Figma team's shared libraries. " +
@@ -107,7 +109,7 @@ export function registerComponentTools(server: McpServer): void {
    * Mirrors: whoami
    */
   server.registerTool(
-    "figma_whoami",
+    p("whoami"),
     {
       description:
         "Get the identity of the authenticated Figma user: name, email, and account ID. " +

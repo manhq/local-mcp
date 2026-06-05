@@ -4,13 +4,15 @@ import { getFigmaClient } from "../client.js";
 import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 
-export function registerVariableTools(server: McpServer): void {
+export function registerVariableTools(server: McpServer, prefix = ""): void {
+  const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
+
   /**
    * Mirrors: get_variable_defs
    * Extracts design tokens (colors, spacing, typography, etc.) from a Figma file.
    */
   server.registerTool(
-    "figma_get_variables",
+    p("get_variables"),
     {
       description:
         "Get all local design variables (tokens) from a Figma file: colors, spacing, typography, radii, etc. " +
@@ -33,7 +35,7 @@ export function registerVariableTools(server: McpServer): void {
    * Get published variables from a library file.
    */
   server.registerTool(
-    "figma_get_published_variables",
+    p("get_published_variables"),
     {
       description:
         "Get published design variables from a Figma library file. " +

@@ -5,9 +5,11 @@ import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { FigmaCommentsResponse } from "../types.js";
 
-export function registerCommentTools(server: McpServer): void {
+export function registerCommentTools(server: McpServer, prefix = ""): void {
+  const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
+
   server.registerTool(
-    "figma_get_comments",
+    p("get_comments"),
     {
       description: "Get all comments on a Figma file. Returns comment text, author, creation date, and resolved status.",
       inputSchema: z.object({
@@ -25,7 +27,7 @@ export function registerCommentTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "figma_post_comment",
+    p("post_comment"),
     {
       description:
         "Post a comment on a Figma file. Optionally attach it to a specific node by providing nodeId.",

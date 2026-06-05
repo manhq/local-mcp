@@ -5,9 +5,11 @@ import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { JiraIssue, JiraTransition, JiraUser } from "../types.js";
 
-export function registerJiraTools(server: McpServer): void {
+export function registerJiraTools(server: McpServer, prefix?: string): void {
+  const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
+
   server.registerTool(
-    "getJiraIssue",
+    p("getJiraIssue"),
     {
       description: "Retrieve a Jira issue by its ID or key (e.g. PROJECT-123). Returns summary, status, assignee, priority, and description.",
       inputSchema: z.object({
@@ -23,7 +25,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "searchJiraIssuesUsingJql",
+    p("searchJiraIssuesUsingJql"),
     {
       description: "Search Jira issues using JQL (Jira Query Language). Example: 'project = PROJ AND status = \"In Progress\"'.",
       inputSchema: z.object({
@@ -43,7 +45,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "createJiraIssue",
+    p("createJiraIssue"),
     {
       description: "Create a new Jira issue in a project. Returns the created issue key and URL.",
       inputSchema: z.object({
@@ -76,7 +78,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "editJiraIssue",
+    p("editJiraIssue"),
     {
       description: "Modify field values of an existing Jira issue: summary, description, assignee, or priority.",
       inputSchema: z.object({
@@ -107,7 +109,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "transitionJiraIssue",
+    p("transitionJiraIssue"),
     {
       description: "Execute a workflow state change on a Jira issue, e.g. move to 'In Progress' or 'Done'.",
       inputSchema: z.object({
@@ -132,7 +134,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getTransitionsForJiraIssue",
+    p("getTransitionsForJiraIssue"),
     {
       description: "List all available workflow transitions for a Jira issue.",
       inputSchema: z.object({
@@ -150,7 +152,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "addCommentToJiraIssue",
+    p("addCommentToJiraIssue"),
     {
       description: "Post a comment on a Jira issue.",
       inputSchema: z.object({
@@ -172,7 +174,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "addWorklogToJiraIssue",
+    p("addWorklogToJiraIssue"),
     {
       description: "Record a time tracking entry on a Jira issue.",
       inputSchema: z.object({
@@ -197,7 +199,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getVisibleJiraProjects",
+    p("getVisibleJiraProjects"),
     {
       description: "List all Jira projects the current user has access to.",
       inputSchema: z.object({}),
@@ -215,7 +217,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getJiraProjectIssueTypesMetadata",
+    p("getJiraProjectIssueTypesMetadata"),
     {
       description: "List all issue types available in a Jira project.",
       inputSchema: z.object({
@@ -231,7 +233,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getJiraIssueTypeMetaWithFields",
+    p("getJiraIssueTypeMetaWithFields"),
     {
       description: "Get field metadata for creating issues of a specific type in a project.",
       inputSchema: z.object({
@@ -248,7 +250,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getIssueLinkTypes",
+    p("getIssueLinkTypes"),
     {
       description: "Retrieve all available issue link types (e.g. 'blocks', 'duplicates', 'is cloned by').",
       inputSchema: z.object({}),
@@ -262,7 +264,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getJiraIssueRemoteIssueLinks",
+    p("getJiraIssueRemoteIssueLinks"),
     {
       description: "List external links (e.g. Confluence pages) attached to a Jira issue.",
       inputSchema: z.object({
@@ -278,7 +280,7 @@ export function registerJiraTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "lookupJiraAccountId",
+    p("lookupJiraAccountId"),
     {
       description: "Find Jira user account IDs by display name or email address.",
       inputSchema: z.object({

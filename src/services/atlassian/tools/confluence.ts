@@ -5,9 +5,11 @@ import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { ConfluencePage, ConfluenceSpace, ConfluenceComment } from "../types.js";
 
-export function registerConfluenceTools(server: McpServer): void {
+export function registerConfluenceTools(server: McpServer, prefix?: string): void {
+  const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
+
   server.registerTool(
-    "getConfluencePage",
+    p("getConfluencePage"),
     {
       description: "Fetch a Confluence page or live document by ID. Returns title, space, version, and body content.",
       inputSchema: z.object({
@@ -25,7 +27,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getConfluencePageDescendants",
+    p("getConfluencePageDescendants"),
     {
       description: "List child pages under a Confluence parent page.",
       inputSchema: z.object({
@@ -44,7 +46,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getConfluencePageFooterComments",
+    p("getConfluencePageFooterComments"),
     {
       description: "Retrieve footer-level comments on a Confluence page.",
       inputSchema: z.object({
@@ -62,7 +64,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getConfluencePageInlineComments",
+    p("getConfluencePageInlineComments"),
     {
       description: "Get inline comments tied to specific text in a Confluence page.",
       inputSchema: z.object({
@@ -80,7 +82,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getConfluenceCommentChildren",
+    p("getConfluenceCommentChildren"),
     {
       description: "View reply threads to a Confluence comment.",
       inputSchema: z.object({
@@ -96,7 +98,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getConfluenceSpaces",
+    p("getConfluenceSpaces"),
     {
       description: "List all Confluence spaces the current user has access to.",
       inputSchema: z.object({
@@ -114,7 +116,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "getPagesInConfluenceSpace",
+    p("getPagesInConfluenceSpace"),
     {
       description: "Enumerate pages within a Confluence space.",
       inputSchema: z.object({
@@ -133,7 +135,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "createConfluencePage",
+    p("createConfluencePage"),
     {
       description: "Create a new Confluence page in a space.",
       inputSchema: z.object({
@@ -159,7 +161,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "updateConfluencePage",
+    p("updateConfluencePage"),
     {
       description: "Edit the content or title of an existing Confluence page. Requires the current version number.",
       inputSchema: z.object({
@@ -183,7 +185,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "createConfluenceFooterComment",
+    p("createConfluenceFooterComment"),
     {
       description: "Add a footer comment to a Confluence page, or reply to an existing footer comment.",
       inputSchema: z.object({
@@ -207,7 +209,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "createConfluenceInlineComment",
+    p("createConfluenceInlineComment"),
     {
       description: "Create a text-anchored inline comment on a Confluence page.",
       inputSchema: z.object({
@@ -233,7 +235,7 @@ export function registerConfluenceTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "searchConfluenceUsingCql",
+    p("searchConfluenceUsingCql"),
     {
       description: "Search Confluence content using CQL (Confluence Query Language). Example: 'space = \"DEV\" AND title ~ \"API\"'.",
       inputSchema: z.object({

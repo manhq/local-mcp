@@ -5,7 +5,9 @@ import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { FigmaFile } from "../types.js";
 
-export function registerFileTools(server: McpServer): void {
+export function registerFileTools(server: McpServer, prefix = ""): void {
+  const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
+
   /**
    * Mirrors: get_metadata
    * Returns a sparse outline of the file or a specific node — IDs, names, types,
@@ -13,7 +15,7 @@ export function registerFileTools(server: McpServer): void {
    * full property details.
    */
   server.registerTool(
-    "figma_get_metadata",
+    p("get_metadata"),
     {
       description:
         "Get a sparse structural outline of a Figma file or a specific node: layer names, IDs, types, and bounding boxes. " +
@@ -66,7 +68,7 @@ export function registerFileTools(server: McpServer): void {
    * layout, effects, constraints — enough for a developer to implement the design.
    */
   server.registerTool(
-    "figma_get_design_context",
+    p("get_design_context"),
     {
       description:
         "Get full design context for a specific Figma node: fills, strokes, typography, auto-layout, effects, and constraints. " +

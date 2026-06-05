@@ -5,9 +5,11 @@ import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { ListSpacesResponse, ListMessagesResponse, ChatMessage } from "../types.js";
 
-export function registerMessageTools(server: McpServer): void {
+export function registerMessageTools(server: McpServer, prefix?: string): void {
+  const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
+
   server.registerTool(
-    "search_conversations",
+    p("search_conversations"),
     {
       description:
         "Search Google Chat conversations (spaces, DMs, group DMs) by display name or participants. " +
@@ -39,7 +41,7 @@ export function registerMessageTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "list_messages",
+    p("list_messages"),
     {
       description:
         "Retrieve messages from a Google Chat conversation (space, DM, or group DM). " +
@@ -75,7 +77,7 @@ export function registerMessageTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "search_messages",
+    p("search_messages"),
     {
       description:
         "Search messages across Google Chat conversations with various filters: keywords, sender, time range, mentions, etc.",
@@ -125,7 +127,7 @@ export function registerMessageTools(server: McpServer): void {
   );
 
   server.registerTool(
-    "send_message",
+    p("send_message"),
     {
       description:
         "Send a message to a Google Chat conversation. Optionally reply to a specific thread.",
