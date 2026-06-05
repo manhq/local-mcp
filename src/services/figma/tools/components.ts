@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import figmaClient from "../client.js";
+import { getFigmaClient } from "../client.js";
 import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 
@@ -21,7 +21,7 @@ export function registerComponentTools(server: McpServer): void {
     },
     async ({ fileKey }) => {
       try {
-        const { data } = await figmaClient.get(`/files/${fileKey}/components`);
+        const { data } = await getFigmaClient().get(`/files/${fileKey}/components`);
         return toTextResponse(data);
       } catch (error) {
         return handleToolError(error);
@@ -44,7 +44,7 @@ export function registerComponentTools(server: McpServer): void {
     },
     async ({ fileKey }) => {
       try {
-        const { data } = await figmaClient.get(`/files/${fileKey}/component_sets`);
+        const { data } = await getFigmaClient().get(`/files/${fileKey}/component_sets`);
         return toTextResponse(data);
       } catch (error) {
         return handleToolError(error);
@@ -67,7 +67,7 @@ export function registerComponentTools(server: McpServer): void {
     },
     async ({ fileKey }) => {
       try {
-        const { data } = await figmaClient.get(`/files/${fileKey}/styles`);
+        const { data } = await getFigmaClient().get(`/files/${fileKey}/styles`);
         return toTextResponse(data);
       } catch (error) {
         return handleToolError(error);
@@ -93,7 +93,7 @@ export function registerComponentTools(server: McpServer): void {
     },
     async ({ teamId, pageSize, cursor }) => {
       try {
-        const { data } = await figmaClient.get(`/teams/${teamId}/components`, {
+        const { data } = await getFigmaClient().get(`/teams/${teamId}/components`, {
           params: { page_size: pageSize, ...(cursor && { cursor }) },
         });
         return toTextResponse(data);
@@ -116,7 +116,7 @@ export function registerComponentTools(server: McpServer): void {
     },
     async () => {
       try {
-        const { data } = await figmaClient.get("/me");
+        const { data } = await getFigmaClient().get("/me");
         return toTextResponse(data);
       } catch (error) {
         return handleToolError(error);

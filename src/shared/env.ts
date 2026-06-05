@@ -1,4 +1,8 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+import { applySettingsToEnv, getPort } from "./settings.js";
+
+dotenv.config({ path: new URL("../../.env", import.meta.url) });
+applySettingsToEnv();
 
 function optionalGroup<T>(keys: string[], build: () => T): T | null {
   if (keys.every((k) => process.env[k])) return build();
@@ -6,7 +10,7 @@ function optionalGroup<T>(keys: string[], build: () => T): T | null {
 }
 
 export const env = {
-  PORT: parseInt(process.env["PORT"] ?? "47001", 10),
+  PORT: getPort(),
 
   figma: optionalGroup(["FIGMA_HOST", "FIGMA_TOKEN"], () => ({
     HOST: process.env["FIGMA_HOST"]!,

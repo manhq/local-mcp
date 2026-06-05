@@ -1,14 +1,13 @@
-import "dotenv/config";
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { env } from "./shared/env.js";
+import { ServiceName } from "./shared/settings.js";
 import { registerFigmaTools } from "./services/figma/index.js";
 import { registerAtlassianTools } from "./services/atlassian/index.js";
 import { registerGChatTools } from "./services/google-chat/index.js";
-
-type ServiceName = "figma" | "atlassian" | "google-chat";
 
 interface ServiceDef {
   register: (server: McpServer) => void;
@@ -24,12 +23,6 @@ const SERVICE_REGISTRY: Record<ServiceName, ServiceDef> = {
 const activeServices = Object.entries(SERVICE_REGISTRY)
   .filter(([, s]) => s.enabled)
   .map(([name]) => name);
-
-// One transport map per service path
-const transportsByService = new Map<ServiceName, Map<string, StreamableHTTPServerTransport>>();
-for (const name of activeServices) {
-  transportsByService.set(name as ServiceName, new Map());
-}
 
 function createServiceServer(name: ServiceName): McpServer {
   const server = new McpServer({ name, version: "1.0.0" });
@@ -78,50 +71,66 @@ function mountMcpHandler(
   });
 }
 
-const app = express();
-app.use(express.json());
+export function createApp(): express.Express {
+  const app = express();
+  app.use(express.json());
 
-// Per-service endpoints: /mcp/figma, /mcp/jira, /mcp/google-chat
-for (const name of activeServices) {
-  const service = name as ServiceName;
+  // One transport map per service path
+  const transportsByService = new Map<ServiceName, Map<string, StreamableHTTPServerTransport>>();
+  for (const name of activeServices) {
+    transportsByService.set(name as ServiceName, new Map());
+  }
+
+  // Per-service endpoints: /mcp/figma, /mcp/atlassian, /mcp/google-chat
+  for (const name of activeServices) {
+    const service = name as ServiceName;
+    mountMcpHandler(
+      app,
+      `/mcp/${service}`,
+      () => transportsByService.get(service)!,
+      () => createServiceServer(service)
+    );
+  }
+
+  // Combined endpoint /mcp — all active services in one server
+  const combinedTransports = new Map<string, StreamableHTTPServerTransport>();
   mountMcpHandler(
     app,
-    `/mcp/${service}`,
-    () => transportsByService.get(service)!,
-    () => createServiceServer(service)
+    "/mcp",
+    () => combinedTransports,
+    () => {
+      const server = new McpServer({ name: "localmcp", version: "1.0.0" });
+      for (const name of activeServices) {
+        SERVICE_REGISTRY[name as ServiceName].register(server);
+      }
+      return server;
+    }
   );
+
+  app.get("/health", (_req, res) => {
+    res.json({
+      status: "ok",
+      services: activeServices,
+      endpoints: {
+        combined: `/mcp`,
+        ...Object.fromEntries(activeServices.map((s) => [s, `/mcp/${s}`])),
+      },
+    });
+  });
+
+  return app;
 }
 
-// Combined endpoint /mcp — all active services in one server
-const combinedTransports = new Map<string, StreamableHTTPServerTransport>();
-mountMcpHandler(
-  app,
-  "/mcp",
-  () => combinedTransports,
-  () => {
-    const server = new McpServer({ name: "local-mcp", version: "1.0.0" });
-    for (const name of activeServices) {
-      SERVICE_REGISTRY[name as ServiceName].register(server);
+export function startServer(): void {
+  createApp().listen(env.PORT, () => {
+    console.log(`Local MCP server running at http://localhost:${env.PORT}`);
+    console.log(`Combined endpoint : http://localhost:${env.PORT}/mcp`);
+    for (const s of activeServices) {
+      console.log(`  /mcp/${s.padEnd(12)}: http://localhost:${env.PORT}/mcp/${s}`);
     }
-    return server;
-  }
-);
-
-app.get("/health", (_req, res) => {
-  res.json({
-    status: "ok",
-    services: activeServices,
-    endpoints: {
-      combined: `/mcp`,
-      ...Object.fromEntries(activeServices.map((s) => [s, `/mcp/${s}`])),
-    },
   });
-});
+}
 
-app.listen(env.PORT, () => {
-  console.log(`Local MCP server running at http://localhost:${env.PORT}`);
-  console.log(`Combined endpoint : http://localhost:${env.PORT}/mcp`);
-  for (const s of activeServices) {
-    console.log(`  /mcp/${s.padEnd(12)}: http://localhost:${env.PORT}/mcp/${s}`);
-  }
-});
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
+  startServer();
+}

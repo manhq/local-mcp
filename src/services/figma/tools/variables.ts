@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import figmaClient from "../client.js";
+import { getFigmaClient } from "../client.js";
 import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 
@@ -21,7 +21,7 @@ export function registerVariableTools(server: McpServer): void {
     },
     async ({ fileKey }) => {
       try {
-        const { data } = await figmaClient.get(`/files/${fileKey}/variables/local`);
+        const { data } = await getFigmaClient().get(`/files/${fileKey}/variables/local`);
         return toTextResponse(data);
       } catch (error) {
         return handleToolError(error);
@@ -44,7 +44,7 @@ export function registerVariableTools(server: McpServer): void {
     },
     async ({ fileKey }) => {
       try {
-        const { data } = await figmaClient.get(`/files/${fileKey}/variables/published`);
+        const { data } = await getFigmaClient().get(`/files/${fileKey}/variables/published`);
         return toTextResponse(data);
       } catch (error) {
         return handleToolError(error);

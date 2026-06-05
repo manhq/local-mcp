@@ -1,45 +1,47 @@
 # Google Chat
 
-Tích hợp Google Chat API — tìm kiếm conversations, đọc và gửi tin nhắn. Tool set tương đương [Google Chat MCP server](https://developers.google.com/workspace/chat/api/reference/mcp) chính thức.
+[English](google-chat.md) | [Tiếng Việt](vi/google-chat.md)
 
-## Biến môi trường
+Integrates the Google Chat API to search conversations, read messages, and send messages. The tool set is equivalent to the official [Google Chat MCP server](https://developers.google.com/workspace/chat/api/reference/mcp).
 
-| Biến | Bắt buộc | Mô tả |
-|------|----------|-------|
-| `GCHAT_CLIENT_ID` | Có | OAuth 2.0 Client ID |
-| `GCHAT_CLIENT_SECRET` | Có | OAuth 2.0 Client Secret |
-| `GCHAT_REFRESH_TOKEN` | Có | OAuth 2.0 Refresh Token |
+## Environment Variables
 
-Service chỉ được bật khi **cả ba** biến trên có giá trị.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `GCHAT_CLIENT_ID` | Yes | OAuth 2.0 Client ID |
+| `GCHAT_CLIENT_SECRET` | Yes | OAuth 2.0 Client Secret |
+| `GCHAT_REFRESH_TOKEN` | Yes | OAuth 2.0 Refresh Token |
 
-### Lấy credentials
+The service is enabled only when **all three** variables are set.
 
-1. Vào [Google Cloud Console](https://console.cloud.google.com) → tạo hoặc chọn project
-2. Bật **Google Chat API**
-3. Vào **APIs & Services → Credentials → Create Credentials → OAuth client ID**
+### Get Credentials
+
+1. Go to [Google Cloud Console](https://console.cloud.google.com), then create or select a project
+2. Enable **Google Chat API**
+3. Go to **APIs & Services -> Credentials -> Create Credentials -> OAuth client ID**
    - Application type: **Web application**
    - Authorized redirect URIs: `http://localhost`
-4. Sao chép **Client ID** và **Client Secret**
-5. Lấy Refresh Token — chạy OAuth flow với các scopes sau:
+4. Copy **Client ID** and **Client Secret**
+5. Get a Refresh Token by running an OAuth flow with these scopes:
    ```
    https://www.googleapis.com/auth/chat.spaces.readonly
    https://www.googleapis.com/auth/chat.messages.readonly
    https://www.googleapis.com/auth/chat.messages.create
    ```
-6. Điền vào `.env`:
+6. Add credentials to `.env`:
    ```
    GCHAT_CLIENT_ID=xxxx.apps.googleusercontent.com
    GCHAT_CLIENT_SECRET=GOCSPX-xxxx
    GCHAT_REFRESH_TOKEN=1//xxxx
    ```
 
-## Endpoint MCP
+## MCP Endpoint
 
 ```
 http://localhost:47001/mcp/google-chat
 ```
 
-## Đăng ký với AI Agents
+## Register with AI Agents
 
 **Claude Code** — `.claude/settings.local.json`
 ```json
@@ -52,10 +54,20 @@ http://localhost:47001/mcp/google-chat
 }
 ```
 
+Or register from the command line:
+```bash
+claude mcp add --transport http google-chat http://localhost:47001/mcp/google-chat
+```
+
 **Codex** — `~/.codex/config.toml`
 ```toml
 [mcp_servers.google-chat]
 url = "http://localhost:47001/mcp/google-chat"
+```
+
+Or register from the command line:
+```bash
+codex mcp add google-chat --url http://localhost:47001/mcp/google-chat
 ```
 
 **GitHub Copilot / VS Code** — `.vscode/mcp.json`
@@ -103,16 +115,16 @@ url = "http://localhost:47001/mcp/google-chat"
 }
 ```
 
-## Danh sách tools
+## Tools
 
-| Tool | Mô tả |
-|------|-------|
-| `search_conversations` | Tìm kiếm spaces, DMs, group DMs theo tên hoặc danh sách participants |
-| `list_messages` | Lấy tin nhắn từ một conversation. Có thể lọc theo thread, khoảng thời gian, hỗ trợ phân trang |
-| `search_messages` | Tìm kiếm tin nhắn theo keywords, sender, thời gian, mention, v.v. |
-| `send_message` | Gửi tin nhắn vào một conversation. Hỗ trợ reply vào thread cụ thể |
+| Tool | Description |
+|------|-------------|
+| `search_conversations` | Searches spaces, DMs, and group DMs by name or participant list. |
+| `list_messages` | Gets messages from a conversation. Supports filtering by thread, time range, and pagination. |
+| `search_messages` | Searches messages by keywords, sender, time, mention, and more. |
+| `send_message` | Sends a message to a conversation. Supports replying to a specific thread. |
 
-## Lấy conversationId và threadId
+## Get conversationId and threadId
 
-- **conversationId**: resource name của space, dạng `spaces/AAAAAAA`. Lấy bằng `search_conversations`.
-- **threadId**: resource name của thread, dạng `spaces/AAAAAAA/threads/BBBBBBB`. Lấy từ field `thread.name` trong kết quả `list_messages`.
+- **conversationId**: the space resource name, shaped like `spaces/AAAAAAA`. Get it with `search_conversations`.
+- **threadId**: the thread resource name, shaped like `spaces/AAAAAAA/threads/BBBBBBB`. Get it from `thread.name` in `list_messages` results.

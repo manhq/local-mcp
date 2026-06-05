@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import figmaClient from "../client.js";
+import { getFigmaClient } from "../client.js";
 import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 
@@ -35,7 +35,7 @@ export function registerImageTools(server: McpServer): void {
     },
     async ({ fileKey, nodeIds, format, scale }) => {
       try {
-        const { data } = await figmaClient.get(`/images/${fileKey}`, {
+        const { data } = await getFigmaClient().get(`/images/${fileKey}`, {
           params: {
             ids: nodeIds.join(","),
             format,
@@ -68,7 +68,7 @@ export function registerImageTools(server: McpServer): void {
     },
     async ({ fileKey }) => {
       try {
-        const { data } = await figmaClient.get(`/files/${fileKey}/images`);
+        const { data } = await getFigmaClient().get(`/files/${fileKey}/images`);
         return toTextResponse(data);
       } catch (error) {
         return handleToolError(error);

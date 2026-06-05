@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import figmaClient from "../client.js";
+import { getFigmaClient } from "../client.js";
 import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { FigmaCommentsResponse } from "../types.js";
@@ -16,7 +16,7 @@ export function registerCommentTools(server: McpServer): void {
     },
     async ({ fileKey }) => {
       try {
-        const { data } = await figmaClient.get<FigmaCommentsResponse>(`/files/${fileKey}/comments`);
+        const { data } = await getFigmaClient().get<FigmaCommentsResponse>(`/files/${fileKey}/comments`);
         return toTextResponse(data.comments);
       } catch (error) {
         return handleToolError(error);
@@ -42,7 +42,7 @@ export function registerCommentTools(server: McpServer): void {
           body["client_meta"] = { node_id: nodeId };
         }
 
-        const { data } = await figmaClient.post(`/files/${fileKey}/comments`, body);
+        const { data } = await getFigmaClient().post(`/files/${fileKey}/comments`, body);
         return toTextResponse(data);
       } catch (error) {
         return handleToolError(error);

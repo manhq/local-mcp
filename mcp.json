@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "local-mcp": {
+    "localmcp": {
       "type": "streamable-http",
       "url": "http://localhost:47001/mcp"
     }

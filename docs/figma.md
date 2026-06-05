@@ -1,33 +1,35 @@
 # Figma
 
-Tích hợp Figma API — cho phép đọc file thiết kế, lấy design tokens, xuất ảnh, và quản lý bình luận.
+[English](figma.md) | [Tiếng Việt](vi/figma.md)
 
-## Biến môi trường
+Integrates the Figma API, allowing agents to read design files, retrieve design tokens, export images, and manage comments.
 
-| Biến | Bắt buộc | Mô tả |
-|------|----------|-------|
-| `FIGMA_HOST` | Có | Địa chỉ API, mặc định `https://api.figma.com/v1` |
-| `FIGMA_TOKEN` | Có | Personal access token từ cài đặt tài khoản Figma |
+## Environment Variables
 
-Service chỉ được bật khi **cả hai** biến trên có giá trị.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `FIGMA_HOST` | Yes | API base URL, defaults to `https://api.figma.com/v1` |
+| `FIGMA_TOKEN` | Yes | Personal access token from Figma account settings |
 
-### Lấy token
+The service is enabled only when **both** variables are set.
 
-1. Vào [Figma Account Settings](https://www.figma.com/settings)
-2. Cuộn xuống phần **Personal access tokens** → tạo token mới
-3. Điền vào `.env`:
+### Get a Token
+
+1. Go to [Figma Account Settings](https://www.figma.com/settings)
+2. Scroll to **Personal access tokens** and create a new token
+3. Add it to `.env`:
    ```
    FIGMA_HOST=https://api.figma.com/v1
    FIGMA_TOKEN=figd_xxxxxxxxxxxx
    ```
 
-## Endpoint MCP
+## MCP Endpoint
 
 ```
 http://localhost:47001/mcp/figma
 ```
 
-## Đăng ký với AI Agents
+## Register with AI Agents
 
 **Claude Code** — `.claude/settings.local.json`
 ```json
@@ -40,10 +42,20 @@ http://localhost:47001/mcp/figma
 }
 ```
 
+Or register from the command line:
+```bash
+claude mcp add --transport http figma http://localhost:47001/mcp/figma
+```
+
 **Codex** — `~/.codex/config.toml`
 ```toml
 [mcp_servers.figma]
 url = "http://localhost:47001/mcp/figma"
+```
+
+Or register from the command line:
+```bash
+codex mcp add figma --url http://localhost:47001/mcp/figma
 ```
 
 **GitHub Copilot / VS Code** — `.vscode/mcp.json`
@@ -91,52 +103,52 @@ url = "http://localhost:47001/mcp/figma"
 }
 ```
 
-## Danh sách tools
+## Tools
 
 ### File & Node
 
-| Tool | Mô tả |
-|------|-------|
-| `figma_get_metadata` | Lấy cấu trúc cây của file hoặc một node cụ thể: tên, ID, kiểu, bounding box. Dùng trước khi lấy chi tiết thiết kế. |
-| `figma_get_design_context` | Lấy toàn bộ thuộc tính thiết kế của một node: màu sắc, typography, auto-layout, effects, constraints. |
+| Tool | Description |
+|------|-------------|
+| `figma_get_metadata` | Gets the file tree or a specific node: name, ID, type, and bounding box. Use before reading detailed design data. |
+| `figma_get_design_context` | Gets full design properties for a node: colors, typography, auto-layout, effects, and constraints. |
 
-### Bình luận
+### Comments
 
-| Tool | Mô tả |
-|------|-------|
-| `figma_get_comments` | Lấy tất cả bình luận trong file: nội dung, tác giả, ngày tạo, trạng thái resolved. |
-| `figma_post_comment` | Đăng bình luận lên file. Có thể gắn vào node cụ thể qua `nodeId`. |
+| Tool | Description |
+|------|-------------|
+| `figma_get_comments` | Gets all comments in a file: content, author, creation date, and resolved state. |
+| `figma_post_comment` | Posts a comment to a file. Can attach to a specific node via `nodeId`. |
 
 ### Design Tokens
 
-| Tool | Mô tả |
-|------|-------|
-| `figma_get_variables` | Lấy tất cả biến thiết kế cục bộ trong file: màu, spacing, typography, border-radius, v.v. |
-| `figma_get_published_variables` | Lấy các biến thiết kế đã được publish từ file thư viện. |
+| Tool | Description |
+|------|-------------|
+| `figma_get_variables` | Gets all local design variables in a file: colors, spacing, typography, radius, and more. |
+| `figma_get_published_variables` | Gets design variables published from a library file. |
 
-### Ảnh & Assets
+### Images & Assets
 
-| Tool | Mô tả |
-|------|-------|
-| `figma_export_image` | Xuất node thành ảnh, trả về URL tải tạm thời. Hỗ trợ PNG, JPG, SVG, PDF. |
-| `figma_get_image_fills` | Lấy URL tải ảnh cho tất cả image fills được nhúng trong file. |
+| Tool | Description |
+|------|-------------|
+| `figma_export_image` | Exports a node as an image and returns a temporary download URL. Supports PNG, JPG, SVG, and PDF. |
+| `figma_get_image_fills` | Gets download URLs for all image fills embedded in the file. |
 
 ### Components & Styles
 
-| Tool | Mô tả |
-|------|-------|
-| `figma_get_components` | Lấy danh sách components đã publish trong file: tên, mô tả, node ID. |
-| `figma_get_component_sets` | Lấy danh sách component sets (nhóm variants) trong file. |
-| `figma_get_styles` | Lấy tất cả styles đã publish: color styles, text styles, effect styles, grid styles. |
-| `figma_get_team_components` | Lấy components từ tất cả thư viện dùng chung của team. Cần `teamId`. |
+| Tool | Description |
+|------|-------------|
+| `figma_get_components` | Gets published components in the file: name, description, and node ID. |
+| `figma_get_component_sets` | Gets component sets, meaning variant groups, in the file. |
+| `figma_get_styles` | Gets all published styles: color styles, text styles, effect styles, and grid styles. |
+| `figma_get_team_components` | Gets components from all shared team libraries. Requires `teamId`. |
 
-### Tài khoản
+### Account
 
-| Tool | Mô tả |
-|------|-------|
-| `figma_whoami` | Xem thông tin tài khoản Figma đang được xác thực: tên, email, account ID. |
+| Tool | Description |
+|------|-------------|
+| `figma_whoami` | Shows the authenticated Figma account: name, email, and account ID. |
 
-## Tìm fileKey và nodeId
+## Find fileKey and nodeId
 
-- **fileKey**: chuỗi trong URL của file Figma, ví dụ `https://www.figma.com/file/`**`AbCdEfGh`**`/Ten-file`
-- **nodeId**: có dạng `123:456`, lấy từ URL khi chọn một layer, hoặc dùng `figma_get_metadata` để duyệt cây.
+- **fileKey**: the string in the Figma file URL, for example `https://www.figma.com/file/`**`AbCdEfGh`**`/File-name`
+- **nodeId**: usually shaped like `123:456`; get it from the URL after selecting a layer, or use `figma_get_metadata` to browse the tree.

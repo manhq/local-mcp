@@ -1,64 +1,130 @@
 # Local MCP Server
 
-MCP server tự host, tích hợp Figma, Jira và Google Chat cho Claude Code.
+[English](README.md) | [Tiếng Việt](README.vi.md)
 
-## Yêu cầu
+Self-hosted MCP server integrating Figma, Jira, and Google Chat for AI agents.
+
+## Requirements
 
 - Node.js 20+ (LTS)
 - npm 10+
 
-## Cài đặt & chạy
+## Install & Run
 
 ```bash
-# Cài dependencies
+# Install dependencies
 npm install
 
-# Tạo file cấu hình
+# Create the configuration file
 cp .env.example .env
 ```
 
-Điền credentials vào `.env` (xem tài liệu từng service bên dưới), sau đó:
+Fill credentials in `.env` (see each service doc below), then:
 
 ```bash
-# Chạy ở chế độ dev (tự reload khi sửa code)
+# Run in dev mode with auto reload
 npm run dev
 
-# Build & chạy production
+# Build & run production
 npm run build
 npm start
 ```
 
-Server mặc định chạy tại `http://localhost:47001`.
+The server runs at `http://localhost:47001` by default.
 
 ```bash
-# Mở MCP Inspector (chạy song song với server)
+# Open MCP Inspector while the server is running
 npm run inspect
 ```
 
-## Đăng ký với AI Agents
+## Flexible Run
+
+If you do not want to open the project every time, register a global command while developing locally:
+
+```bash
+npm run build
+npm link
+localmcp
+```
+
+After `npm link`, the `localmcp` command works from any directory.
+
+After publishing to npm, users can install it with:
+
+```bash
+npm install -g @manhq/localmcp
+localmcp init
+localmcp config
+localmcp
+```
+
+Default settings path:
+
+```bash
+~/localmcp/settings.json
+```
+
+Main commands:
+
+```bash
+localmcp                         # Run the MCP server
+localmcp init                    # Create settings for the first time
+localmcp list                    # List services and missing variables
+localmcp config                  # Open settings with vim or $EDITOR
+localmcp config figma            # Configure Figma with inline prompts
+localmcp config figma token=figd_xxx
+localmcp register                # Select AI agent, then localmcp or a service
+localmcp register codex --service figma
+localmcp inspect                 # Open MCP Inspector
+localmcp --version               # Show version
+```
+
+Environment variables still take precedence over the settings file, so quick overrides work:
+
+```bash
+PORT=47002 localmcp
+```
+
+Publish package:
+
+```bash
+npm publish --access=public
+```
+
+## Register with AI Agents
 
 **Claude Code** — `.claude/settings.local.json`
 ```json
 {
   "mcpServers": {
-    "local-mcp": {
+    "localmcp": {
       "url": "http://localhost:47001/mcp"
     }
   }
 }
 ```
 
+Or register from the command line:
+```bash
+claude mcp add --transport http localmcp http://localhost:47001/mcp
+```
+
 **Codex** — `~/.codex/config.toml`
 ```toml
-[mcp_servers.local-mcp]
+[mcp_servers.localmcp]
 url = "http://localhost:47001/mcp"
+```
+
+Or register from the command line:
+```bash
+codex mcp add localmcp --url http://localhost:47001/mcp
 ```
 
 **GitHub Copilot / VS Code** — `.vscode/mcp.json`
 ```json
 {
   "servers": {
-    "local-mcp": {
+    "localmcp": {
       "type": "http",
       "url": "http://localhost:47001/mcp"
     }
@@ -70,7 +136,7 @@ url = "http://localhost:47001/mcp"
 ```json
 {
   "mcpServers": {
-    "local-mcp": {
+    "localmcp": {
       "url": "http://localhost:47001/mcp"
     }
   }
@@ -81,7 +147,7 @@ url = "http://localhost:47001/mcp"
 ```json
 {
   "mcpServers": {
-    "local-mcp": {
+    "localmcp": {
       "serverUrl": "http://localhost:47001/mcp"
     }
   }
@@ -92,66 +158,66 @@ url = "http://localhost:47001/mcp"
 ```json
 {
   "mcpServers": {
-    "local-mcp": {
+    "localmcp": {
       "serverUrl": "http://localhost:47001/mcp"
     }
   }
 }
 ```
 
-## Kiểm tra trạng thái
+## Health Check
 
 ```
 GET http://localhost:47001/health
 ```
 
-Trả về danh sách services đang active và các endpoints tương ứng.
+Returns the active services and their corresponding endpoints.
 
 ---
 
-## Danh sách services
+## Services
 
-| Service | Endpoint riêng | Tài liệu |
-|---------|---------------|----------|
-| Figma | `/mcp/figma` | [docs/figma.md](docs/figma.md) |
-| Atlassian | `/mcp/atlassian` | [docs/atlassian.md](docs/atlassian.md) |
-| Google Chat | `/mcp/google-chat` | [docs/google-chat.md](docs/google-chat.md) |
+| Service | Dedicated endpoint | Docs |
+|---------|--------------------|------|
+| Figma | `/mcp/figma` | [EN](docs/figma.md) / [VI](docs/vi/figma.md) |
+| Atlassian | `/mcp/atlassian` | [EN](docs/atlassian.md) / [VI](docs/vi/atlassian.md) |
+| Google Chat | `/mcp/google-chat` | [EN](docs/google-chat.md) / [VI](docs/vi/google-chat.md) |
 
-Endpoint `/mcp` là combined — gộp tất cả services đang active vào một server.
+The `/mcp` endpoint is combined: it exposes every active service through one server.
 
-Mỗi service chỉ được bật khi đủ biến môi trường. Xem tài liệu từng service để biết biến nào cần thiết.
+Each service is enabled only when all required environment variables are present. See each service doc for required variables.
 
 ---
 
-## Thêm service mới
+## Add a New Service
 
-### 1. Tạo cấu trúc thư mục
+### 1. Create the Folder Structure
 
 ```
-src/services/<tên-service>/
-  index.ts          # export registerXxxTools(server)
-  client.ts         # axios client hoặc SDK wrapper
+src/services/<service-name>/
+  index.ts          # exports registerXxxTools(server)
+  client.ts         # axios client or SDK wrapper
   types.ts          # TypeScript types
   tools/
-    <feature>.ts    # đăng ký tool với server.registerTool(...)
+    <feature>.ts    # registers tools with server.registerTool(...)
 ```
 
-### 2. Đăng ký vào service registry
+### 2. Register it in the Service Registry
 
-Mở `src/index.ts`, thêm vào `SERVICE_REGISTRY`:
+Open `src/index.ts`, then add it to `SERVICE_REGISTRY`:
 
 ```ts
 import { registerXxxTools } from "./services/xxx/index.js";
 
 const SERVICE_REGISTRY = {
-  // ...services hiện có...
+  // ...existing services...
   xxx: { register: registerXxxTools, enabled: !!env.xxx },
 };
 ```
 
-### 3. Thêm biến môi trường
+### 3. Add Environment Variables
 
-Mở `src/shared/env.ts`, thêm optional group mới:
+Open `src/shared/env.ts`, then add a new optional group:
 
 ```ts
 export const env = {
@@ -162,12 +228,12 @@ export const env = {
 };
 ```
 
-Thêm vào `.env.example`:
+Add it to `.env.example`:
 
 ```
 XXX_API_KEY=
 ```
 
-### 4. Viết tài liệu
+### 4. Write Documentation
 
-Tạo `docs/<tên-service>.md` theo mẫu các service hiện có, sau đó thêm dòng vào bảng **Danh sách services** ở README này.
+Create `docs/<service-name>.md` and `docs/vi/<service-name>.md`, then add the service to the **Services** table in both README files.

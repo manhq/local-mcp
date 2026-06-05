@@ -1,35 +1,37 @@
 # Atlassian
 
-Tích hợp Jira và Confluence qua Atlassian REST API.
+[English](atlassian.md) | [Tiếng Việt](vi/atlassian.md)
 
-## Biến môi trường
+Integrates Jira and Confluence through the Atlassian REST API.
 
-| Biến | Bắt buộc | Mô tả |
-|------|----------|-------|
-| `ATLASSIAN_HOST` | Có | URL tổ chức, ví dụ `https://yourcompany.atlassian.net` |
-| `ATLASSIAN_EMAIL` | Có | Email tài khoản Atlassian |
-| `ATLASSIAN_API_TOKEN` | Có | API token từ cài đặt tài khoản Atlassian |
+## Environment Variables
 
-Service chỉ được bật khi **cả ba** biến trên có giá trị.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `ATLASSIAN_HOST` | Yes | Organization URL, for example `https://yourcompany.atlassian.net` |
+| `ATLASSIAN_EMAIL` | Yes | Atlassian account email |
+| `ATLASSIAN_API_TOKEN` | Yes | API token from Atlassian account settings |
 
-### Lấy API token
+The service is enabled only when **all three** variables are set.
 
-1. Vào [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens)
-2. Tạo token mới, sao chép giá trị
-3. Điền vào `.env`:
+### Get an API Token
+
+1. Go to [Atlassian API tokens](https://id.atlassian.com/manage-profile/security/api-tokens)
+2. Create a new token and copy its value
+3. Add it to `.env`:
    ```
    ATLASSIAN_HOST=https://yourcompany.atlassian.net
    ATLASSIAN_EMAIL=your@email.com
    ATLASSIAN_API_TOKEN=ATATT3xxxxx
    ```
 
-## Endpoint MCP
+## MCP Endpoint
 
 ```
 http://localhost:47001/mcp/atlassian
 ```
 
-## Đăng ký với AI Agents
+## Register with AI Agents
 
 **Claude Code** — `.claude/settings.local.json`
 ```json
@@ -42,10 +44,20 @@ http://localhost:47001/mcp/atlassian
 }
 ```
 
+Or register from the command line:
+```bash
+claude mcp add --transport http atlassian http://localhost:47001/mcp/atlassian
+```
+
 **Codex** — `~/.codex/config.toml`
 ```toml
 [mcp_servers.atlassian]
 url = "http://localhost:47001/mcp/atlassian"
+```
+
+Or register from the command line:
+```bash
+codex mcp add atlassian --url http://localhost:47001/mcp/atlassian
 ```
 
 **GitHub Copilot / VS Code** — `.vscode/mcp.json`
@@ -93,66 +105,66 @@ url = "http://localhost:47001/mcp/atlassian"
 }
 ```
 
-## Danh sách tools
+## Tools
 
 ### Jira
 
-| Tool | Mô tả |
-|------|-------|
-| `getJiraIssue` | Lấy chi tiết issue theo ID hoặc key (ví dụ `PROJECT-123`) |
-| `searchJiraIssuesUsingJql` | Tìm kiếm issues bằng JQL |
-| `createJiraIssue` | Tạo issue mới trong một project |
-| `editJiraIssue` | Cập nhật summary, description, assignee, hoặc priority |
-| `transitionJiraIssue` | Chuyển trạng thái workflow (ví dụ sang "In Progress", "Done") |
-| `getTransitionsForJiraIssue` | Liệt kê các transitions khả dụng của một issue |
-| `addCommentToJiraIssue` | Đăng comment lên issue |
-| `addWorklogToJiraIssue` | Ghi nhận thời gian làm việc lên issue |
-| `getVisibleJiraProjects` | Liệt kê tất cả projects có quyền truy cập |
-| `getJiraProjectIssueTypesMetadata` | Liệt kê các loại issue trong một project |
-| `getJiraIssueTypeMetaWithFields` | Lấy metadata fields khi tạo issue theo loại cụ thể |
-| `getIssueLinkTypes` | Liệt kê các kiểu liên kết issue (blocks, duplicates, v.v.) |
-| `getJiraIssueRemoteIssueLinks` | Liệt kê các link ngoài gắn vào issue (ví dụ trang Confluence) |
-| `lookupJiraAccountId` | Tìm account ID của user theo tên hoặc email |
+| Tool | Description |
+|------|-------------|
+| `getJiraIssue` | Gets issue details by ID or key, for example `PROJECT-123`. |
+| `searchJiraIssuesUsingJql` | Searches issues with JQL. |
+| `createJiraIssue` | Creates a new issue in a project. |
+| `editJiraIssue` | Updates summary, description, assignee, or priority. |
+| `transitionJiraIssue` | Moves an issue through workflow states, for example to "In Progress" or "Done". |
+| `getTransitionsForJiraIssue` | Lists available transitions for an issue. |
+| `addCommentToJiraIssue` | Adds a comment to an issue. |
+| `addWorklogToJiraIssue` | Logs work time on an issue. |
+| `getVisibleJiraProjects` | Lists all projects the account can access. |
+| `getJiraProjectIssueTypesMetadata` | Lists issue types in a project. |
+| `getJiraIssueTypeMetaWithFields` | Gets field metadata for creating a specific issue type. |
+| `getIssueLinkTypes` | Lists issue link types, such as blocks or duplicates. |
+| `getJiraIssueRemoteIssueLinks` | Lists external links attached to an issue, for example Confluence pages. |
+| `lookupJiraAccountId` | Finds a user's account ID by name or email. |
 
 ### Confluence
 
-| Tool | Mô tả |
-|------|-------|
-| `getConfluencePage` | Lấy nội dung trang theo ID |
-| `getConfluencePageDescendants` | Liệt kê các trang con của một trang |
-| `getConfluencePageFooterComments` | Lấy footer comments của trang |
-| `getConfluencePageInlineComments` | Lấy inline comments gắn với đoạn text cụ thể |
-| `getConfluenceCommentChildren` | Xem các reply của một comment |
-| `getConfluenceSpaces` | Liệt kê tất cả spaces có quyền truy cập |
-| `getPagesInConfluenceSpace` | Liệt kê các trang trong một space |
-| `createConfluencePage` | Tạo trang mới trong một space |
-| `updateConfluencePage` | Cập nhật nội dung hoặc tiêu đề trang (cần số version hiện tại) |
-| `createConfluenceFooterComment` | Thêm footer comment hoặc reply vào trang |
-| `createConfluenceInlineComment` | Tạo inline comment gắn với đoạn text cụ thể |
-| `searchConfluenceUsingCql` | Tìm kiếm nội dung bằng CQL |
+| Tool | Description |
+|------|-------------|
+| `getConfluencePage` | Gets page content by ID. |
+| `getConfluencePageDescendants` | Lists child pages for a page. |
+| `getConfluencePageFooterComments` | Gets footer comments on a page. |
+| `getConfluencePageInlineComments` | Gets inline comments attached to specific text. |
+| `getConfluenceCommentChildren` | Shows replies to a comment. |
+| `getConfluenceSpaces` | Lists all spaces the account can access. |
+| `getPagesInConfluenceSpace` | Lists pages in a space. |
+| `createConfluencePage` | Creates a new page in a space. |
+| `updateConfluencePage` | Updates page content or title. Requires the current version number. |
+| `createConfluenceFooterComment` | Adds a footer comment or reply to a page. |
+| `createConfluenceInlineComment` | Creates an inline comment attached to specific text. |
+| `searchConfluenceUsingCql` | Searches content with CQL. |
 
-## Ví dụ JQL thường dùng
+## Common JQL Examples
 
 ```
-# Issues đang làm trong sprint hiện tại
+# Issues in progress in the current sprint
 project = PROJ AND sprint in openSprints() AND status = "In Progress"
 
-# Bugs chưa xử lý, ưu tiên cao
+# Unresolved high-priority bugs
 project = PROJ AND issuetype = Bug AND priority in (High, Highest) AND status != Done
 
-# Issues được giao cho tôi
+# Issues assigned to me
 assignee = currentUser() AND status != Done ORDER BY created DESC
 ```
 
-## Ví dụ CQL thường dùng
+## Common CQL Examples
 
 ```
-# Tìm trang trong space theo tiêu đề
+# Find pages in a space by title
 space = "DEV" AND title ~ "API" AND type = page
 
-# Tìm nội dung được chỉnh sửa gần đây
+# Find recently edited content
 lastModified > now("-7d") ORDER BY lastModified DESC
 
-# Tìm trang của một người cụ thể
+# Find pages created by a specific user
 creator = "user@email.com" AND type = page
 ```

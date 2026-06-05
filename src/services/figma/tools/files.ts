@@ -1,6 +1,6 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import figmaClient from "../client.js";
+import { getFigmaClient } from "../client.js";
 import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { FigmaFile } from "../types.js";
@@ -28,13 +28,13 @@ export function registerFileTools(server: McpServer): void {
     async ({ fileKey, nodeId, depth }) => {
       try {
         if (nodeId) {
-          const { data } = await figmaClient.get(`/files/${fileKey}/nodes`, {
+          const { data } = await getFigmaClient().get(`/files/${fileKey}/nodes`, {
             params: { ids: nodeId, depth },
           });
           return toTextResponse(summarizeNodes(data.nodes));
         }
 
-        const { data } = await figmaClient.get<FigmaFile>(`/files/${fileKey}`, {
+        const { data } = await getFigmaClient().get<FigmaFile>(`/files/${fileKey}`, {
           params: { depth },
         });
 
@@ -78,7 +78,7 @@ export function registerFileTools(server: McpServer): void {
     },
     async ({ fileKey, nodeId }) => {
       try {
-        const { data } = await figmaClient.get(`/files/${fileKey}/nodes`, {
+        const { data } = await getFigmaClient().get(`/files/${fileKey}/nodes`, {
           params: { ids: nodeId },
         });
 
