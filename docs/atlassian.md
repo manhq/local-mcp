@@ -33,12 +33,37 @@ http://localhost:47001/mcp/atlassian
 
 ## Register with AI Agents
 
-**Claude Code** — `.claude/settings.local.json`
+Each agent supports two transports — pick whichever fits your setup:
+
+- **HTTP** — requires the server to be running (`localmcp`). Shared across agents.
+- **stdio** — the agent spawns the process on demand. No running server needed.
+
+Or use `localmcp register` to set up automatically.
+
+---
+
+### Claude Code
+
+**HTTP** — `.claude/settings.local.json`
 ```json
 {
   "mcpServers": {
     "atlassian": {
+      "type": "http",
       "url": "http://localhost:47001/mcp/atlassian"
+    }
+  }
+}
+```
+
+**stdio** — `.claude/settings.local.json`
+```json
+{
+  "mcpServers": {
+    "atlassian": {
+      "type": "stdio",
+      "command": "localmcp",
+      "args": ["stdio", "atlassian"]
     }
   }
 }
@@ -46,21 +71,44 @@ http://localhost:47001/mcp/atlassian
 
 Or register from the command line:
 ```bash
+# HTTP
 claude mcp add --transport http atlassian http://localhost:47001/mcp/atlassian
+
+# stdio
+claude mcp add atlassian localmcp stdio atlassian
 ```
 
-**Codex** — `~/.codex/config.toml`
+---
+
+### Codex
+
+**HTTP** — `~/.codex/config.toml`
 ```toml
 [mcp_servers.atlassian]
 url = "http://localhost:47001/mcp/atlassian"
 ```
 
-Or register from the command line:
-```bash
-codex mcp add atlassian --url http://localhost:47001/mcp/atlassian
+**stdio** — `~/.codex/config.toml`
+```toml
+[mcp_servers.atlassian]
+command = "localmcp"
+args = ["stdio", "atlassian"]
 ```
 
-**GitHub Copilot / VS Code** — `.vscode/mcp.json`
+Or register from the command line:
+```bash
+# HTTP
+codex mcp add atlassian --url http://localhost:47001/mcp/atlassian
+
+# stdio
+codex mcp add atlassian localmcp stdio atlassian
+```
+
+---
+
+### GitHub Copilot / VS Code
+
+**HTTP** — `.vscode/mcp.json`
 ```json
 {
   "servers": {
@@ -72,7 +120,24 @@ codex mcp add atlassian --url http://localhost:47001/mcp/atlassian
 }
 ```
 
-**Cursor** — `.cursor/mcp.json`
+**stdio** — `.vscode/mcp.json`
+```json
+{
+  "servers": {
+    "atlassian": {
+      "type": "stdio",
+      "command": "localmcp",
+      "args": ["stdio", "atlassian"]
+    }
+  }
+}
+```
+
+---
+
+### Cursor
+
+**HTTP** — `.cursor/mcp.json`
 ```json
 {
   "mcpServers": {
@@ -83,7 +148,23 @@ codex mcp add atlassian --url http://localhost:47001/mcp/atlassian
 }
 ```
 
-**Windsurf** — `~/.codeium/windsurf/mcp_config.json`
+**stdio** — `.cursor/mcp.json`
+```json
+{
+  "mcpServers": {
+    "atlassian": {
+      "command": "localmcp",
+      "args": ["stdio", "atlassian"]
+    }
+  }
+}
+```
+
+---
+
+### Windsurf
+
+**HTTP** — `~/.codeium/windsurf/mcp_config.json`
 ```json
 {
   "mcpServers": {
@@ -94,7 +175,23 @@ codex mcp add atlassian --url http://localhost:47001/mcp/atlassian
 }
 ```
 
-**Antigravity** — `~/.gemini/config/mcp_config.json`
+**stdio** — `~/.codeium/windsurf/mcp_config.json`
+```json
+{
+  "mcpServers": {
+    "atlassian": {
+      "command": "localmcp",
+      "args": ["stdio", "atlassian"]
+    }
+  }
+}
+```
+
+---
+
+### Antigravity
+
+**HTTP** — `~/.gemini/config/mcp_config.json`
 ```json
 {
   "mcpServers": {
@@ -104,6 +201,48 @@ codex mcp add atlassian --url http://localhost:47001/mcp/atlassian
   }
 }
 ```
+
+**stdio** — `~/.gemini/config/mcp_config.json`
+```json
+{
+  "mcpServers": {
+    "atlassian": {
+      "command": "localmcp",
+      "args": ["stdio", "atlassian"]
+    }
+  }
+}
+```
+
+---
+
+## REST API
+
+Call any Atlassian tool over plain HTTP — useful for scripts and automation.
+
+```bash
+# List all tools
+GET http://localhost:47001/api/atlassian
+
+# Call a tool
+POST http://localhost:47001/api/atlassian/getJiraIssue
+Content-Type: application/json
+
+{"issueIdOrKey": "PROJ-123"}
+
+POST http://localhost:47001/api/atlassian/searchJiraIssuesUsingJql
+Content-Type: application/json
+
+{"jql": "project = PROJ AND status = \"In Progress\"", "maxResults": 20}
+```
+
+Open the interactive playground:
+```bash
+localmcp playground
+# or: open http://localhost:47001/playground
+```
+
+---
 
 ## Tools
 

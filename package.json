@@ -1,6 +1,6 @@
 {
   "name": "@manhq/localmcp",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Local HTTP MCP server for Figma, Atlassian, and Google Chat with a single CLI.",
   "type": "module",
   "license": "UNLICENSED",
@@ -35,7 +35,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "inspect": "npx @modelcontextprotocol/inspector --config mcp.json --server localmcp",
+    "inspect": "npx @modelcontextprotocol/inspector --config mcp.json",
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
@@ -43,7 +43,8 @@
     "axios": "^1.7.9",
     "dotenv": "^16.4.7",
     "express": "^4.21.2",
-    "zod": "^3.24.2"
+    "zod": "^3.24.2",
+    "zod-to-json-schema": "^3.25.2"
   },
   "devDependencies": {
     "@types/express": "^5.0.0",

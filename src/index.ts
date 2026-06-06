@@ -3,11 +3,14 @@ import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { env } from "./shared/env.js";
 import { ServiceName } from "./shared/settings.js";
 import { registerFigmaTools } from "./services/figma/index.js";
 import { registerAtlassianTools } from "./services/atlassian/index.js";
 import { registerGChatTools } from "./services/google-chat/index.js";
+import { createMcpServerWithRegistry } from "./api/server-with-registry.js";
+import { mountRestApi } from "./api/rest.js";
 
 interface ServiceDef {
   register: (server: McpServer, prefix?: string) => void;
@@ -25,9 +28,17 @@ const activeServices = Object.entries(SERVICE_REGISTRY)
   .filter(([, s]) => s.enabled)
   .map(([name]) => name);
 
+// Populates REST registry AND returns a connected McpServer — used for warm-up and stdio.
 function createServiceServer(name: ServiceName): McpServer {
+  const server = createMcpServerWithRegistry(name, { name, version: "1.0.0" });
+  SERVICE_REGISTRY[name].register(server);
+  return server;
+}
+
+// Returns a plain McpServer without touching the REST registry — used per HTTP request
+// so the global registry is not re-populated on every MCP call.
+function createServiceServerOnly(name: ServiceName): McpServer {
   const server = new McpServer({ name, version: "1.0.0" });
-  // Per-service path: no prefix, tools keep their base names
   SERVICE_REGISTRY[name].register(server);
   return server;
 }
@@ -117,13 +128,18 @@ export function createApp(): express.Express {
   const app = express();
   app.use(express.json());
 
+  // Warm up registry by creating all service servers once (no transport needed)
+  for (const name of activeServices) {
+    createServiceServer(name as ServiceName);
+  }
+
   // Streamable HTTP — combined
   mountMcpHandler(app, "/mcp", makeCombinedServer);
 
   // Streamable HTTP — per-service: /mcp/figma, /mcp/atlassian, /mcp/google-chat
   for (const name of activeServices) {
     const service = name as ServiceName;
-    mountMcpHandler(app, `/mcp/${service}`, () => createServiceServer(service));
+    mountMcpHandler(app, `/mcp/${service}`, () => createServiceServerOnly(service));
   }
 
   // Legacy SSE (2024-11-05) — combined: GET /sse  →  POST /messages?sessionId=...
@@ -136,9 +152,12 @@ export function createApp(): express.Express {
       app,
       `/sse/${service}`,
       `/messages/${service}`,
-      () => createServiceServer(service)
+      () => createServiceServerOnly(service)
     );
   }
+
+  // REST API + Playground
+  mountRestApi(app);
 
   app.get("/health", (_req, res) => {
     res.json({
@@ -153,6 +172,13 @@ export function createApp(): express.Express {
           combined: "/sse",
           ...Object.fromEntries(activeServices.map((s) => [s, `/sse/${s}`])),
         },
+        rest: {
+          index: "/api",
+          service: "/api/:service",
+          call: "/api/:service/:tool",
+          spec: "/api/openapi.json",
+          playground: "/playground",
+        },
       },
     });
   });
@@ -163,13 +189,30 @@ export function createApp(): express.Express {
 export function startServer(): void {
   createApp().listen(env.PORT, () => {
     const base = `http://localhost:${env.PORT}`;
+    const cliPath = fileURLToPath(new URL("cli.js", import.meta.url));
+    const stdioCmd = `${process.execPath} ${cliPath} stdio`;
+
     console.log(`Local MCP server running at ${base}`);
+    console.log(``);
     console.log(`  Streamable HTTP : ${base}/mcp`);
-    console.log(`  Legacy SSE      : ${base}/sse  (messages: ${base}/messages)`);
+    console.log(`  Legacy SSE      : ${base}/sse`);
     for (const s of activeServices) {
       console.log(`  [${s}]  ${base}/mcp/${s}  |  ${base}/sse/${s}`);
     }
+    console.log(`  REST API        : ${base}/api`);
+    console.log(`  Playground      : ${base}/playground`);
+    console.log(``);
+    console.log(`  stdio command   : ${stdioCmd}`);
+    for (const s of activeServices) {
+      console.log(`  stdio [${s}]  : ${process.execPath} ${cliPath} stdio ${s}`);
+    }
   });
+}
+
+export async function startStdio(service?: ServiceName): Promise<void> {
+  const server = service ? createServiceServer(service) : makeCombinedServer();
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

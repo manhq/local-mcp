@@ -31,12 +31,37 @@ http://localhost:47001/mcp/figma
 
 ## Đăng ký với AI Agents
 
-**Claude Code** — `.claude/settings.local.json`
+Mỗi agent hỗ trợ hai chế độ transport — chọn cái phù hợp với setup của bạn:
+
+- **HTTP** — cần server đang chạy (`localmcp`). Dùng chung giữa các agent.
+- **stdio** — agent tự spawn process khi cần. Không cần server chạy sẵn.
+
+Hoặc dùng `localmcp register` để đăng ký tự động.
+
+---
+
+### Claude Code
+
+**HTTP** — `.claude/settings.local.json`
 ```json
 {
   "mcpServers": {
     "figma": {
+      "type": "http",
       "url": "http://localhost:47001/mcp/figma"
+    }
+  }
+}
+```
+
+**stdio** — `.claude/settings.local.json`
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "type": "stdio",
+      "command": "localmcp",
+      "args": ["stdio", "figma"]
     }
   }
 }
@@ -44,21 +69,44 @@ http://localhost:47001/mcp/figma
 
 Hoặc đăng ký bằng command line:
 ```bash
+# HTTP
 claude mcp add --transport http figma http://localhost:47001/mcp/figma
+
+# stdio
+claude mcp add figma localmcp stdio figma
 ```
 
-**Codex** — `~/.codex/config.toml`
+---
+
+### Codex
+
+**HTTP** — `~/.codex/config.toml`
 ```toml
 [mcp_servers.figma]
 url = "http://localhost:47001/mcp/figma"
 ```
 
-Hoặc đăng ký bằng command line:
-```bash
-codex mcp add figma --url http://localhost:47001/mcp/figma
+**stdio** — `~/.codex/config.toml`
+```toml
+[mcp_servers.figma]
+command = "localmcp"
+args = ["stdio", "figma"]
 ```
 
-**GitHub Copilot / VS Code** — `.vscode/mcp.json`
+Hoặc đăng ký bằng command line:
+```bash
+# HTTP
+codex mcp add figma --url http://localhost:47001/mcp/figma
+
+# stdio
+codex mcp add figma localmcp stdio figma
+```
+
+---
+
+### GitHub Copilot / VS Code
+
+**HTTP** — `.vscode/mcp.json`
 ```json
 {
   "servers": {
@@ -70,7 +118,24 @@ codex mcp add figma --url http://localhost:47001/mcp/figma
 }
 ```
 
-**Cursor** — `.cursor/mcp.json`
+**stdio** — `.vscode/mcp.json`
+```json
+{
+  "servers": {
+    "figma": {
+      "type": "stdio",
+      "command": "localmcp",
+      "args": ["stdio", "figma"]
+    }
+  }
+}
+```
+
+---
+
+### Cursor
+
+**HTTP** — `.cursor/mcp.json`
 ```json
 {
   "mcpServers": {
@@ -81,7 +146,23 @@ codex mcp add figma --url http://localhost:47001/mcp/figma
 }
 ```
 
-**Windsurf** — `~/.codeium/windsurf/mcp_config.json`
+**stdio** — `.cursor/mcp.json`
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "command": "localmcp",
+      "args": ["stdio", "figma"]
+    }
+  }
+}
+```
+
+---
+
+### Windsurf
+
+**HTTP** — `~/.codeium/windsurf/mcp_config.json`
 ```json
 {
   "mcpServers": {
@@ -92,7 +173,23 @@ codex mcp add figma --url http://localhost:47001/mcp/figma
 }
 ```
 
-**Antigravity** — `~/.gemini/config/mcp_config.json`
+**stdio** — `~/.codeium/windsurf/mcp_config.json`
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "command": "localmcp",
+      "args": ["stdio", "figma"]
+    }
+  }
+}
+```
+
+---
+
+### Antigravity
+
+**HTTP** — `~/.gemini/config/mcp_config.json`
 ```json
 {
   "mcpServers": {
@@ -102,6 +199,48 @@ codex mcp add figma --url http://localhost:47001/mcp/figma
   }
 }
 ```
+
+**stdio** — `~/.gemini/config/mcp_config.json`
+```json
+{
+  "mcpServers": {
+    "figma": {
+      "command": "localmcp",
+      "args": ["stdio", "figma"]
+    }
+  }
+}
+```
+
+---
+
+## REST API
+
+Gọi bất kỳ tool Figma nào qua HTTP thông thường — tiện cho script và automation.
+
+```bash
+# Liệt kê tất cả tools
+GET http://localhost:47001/api/figma
+
+# Gọi một tool
+POST http://localhost:47001/api/figma/figma_whoami
+Content-Type: application/json
+
+{}
+
+POST http://localhost:47001/api/figma/figma_get_metadata
+Content-Type: application/json
+
+{"fileKey": "AbCdEfGh", "depth": 2}
+```
+
+Mở interactive playground:
+```bash
+localmcp playground
+# hoặc: open http://localhost:47001/playground
+```
+
+---
 
 ## Danh sách tools
 

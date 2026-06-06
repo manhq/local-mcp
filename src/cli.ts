@@ -18,6 +18,9 @@ import {
 type AgentName = "claude" | "codex" | "cursor" | "vscode" | "windsurf" | "antigravity";
 type RegisterTarget = "localmcp" | ServiceName;
 
+// Resolved once at module load — used by register and inspect to build stdio commands
+const CLI_PATH = join(dirname(fileURLToPath(import.meta.url)), "cli.js");
+
 const AGENTS: AgentName[] = ["claude", "codex", "cursor", "vscode", "windsurf", "antigravity"];
 const REGISTER_TARGETS: RegisterTarget[] = ["localmcp", ...SERVICE_NAMES];
 
@@ -40,8 +43,22 @@ export async function runCli(argv = process.argv.slice(2)): Promise<void> {
     case "register":
       await handleRegister(args);
       return;
+    case "stdio": {
+      const svc = args[0];
+      if (svc && !SERVICE_NAMES.includes(svc as ServiceName)) {
+        console.error(`Unknown service: ${svc}`);
+        console.error(`Available: ${SERVICE_NAMES.join(", ")}`);
+        process.exitCode = 1;
+        return;
+      }
+      await import("./index.js").then(({ startStdio }) => startStdio(svc as ServiceName | undefined));
+      return;
+    }
     case "inspect":
       handleInspect(args);
+      return;
+    case "playground":
+      handlePlayground();
       return;
     case "help":
     case "--help":
@@ -109,8 +126,11 @@ async function handleConfig(args: string[]): Promise<void> {
 }
 
 async function handleRegister(args: string[]): Promise<void> {
-  const agent = args[0]
-    ? validateChoice(args[0], AGENTS, "AI agent")
+  const nonFlagArgs = args.filter((a) => !a.startsWith("-"));
+  const useStdio = args.includes("--stdio");
+
+  const agent = nonFlagArgs[0]
+    ? validateChoice(nonFlagArgs[0], AGENTS, "AI agent")
     : await promptSelect("Select AI agent", AGENTS);
   if (!agent) return;
 
@@ -120,32 +140,65 @@ async function handleRegister(args: string[]): Promise<void> {
     : await promptSelect("Select service", REGISTER_TARGETS);
   if (!targetName) return;
 
-  const target = getRegistrationTarget(targetName);
+  // --stdio skips the prompt and defaults to stdio; without it, default to http
+  const transport = useStdio ? "stdio" : "http";
+
   const serverName = targetName;
+  const stdioArgs = targetName === "localmcp" ? ["stdio"] : ["stdio", targetName];
 
   if (agent === "claude") {
-    spawnAndInherit("claude", ["mcp", "add", "--transport", "http", serverName, target.url]);
+    if (transport === "stdio") {
+      spawnAndInherit("claude", ["mcp", "add", serverName, process.execPath, CLI_PATH, ...stdioArgs]);
+    } else {
+      spawnAndInherit("claude", ["mcp", "add", "--transport", "http", serverName, getRegistrationTarget(targetName).url]);
+    }
     return;
   }
 
   if (agent === "codex") {
-    spawnAndInherit("codex", ["mcp", "add", serverName, "--url", target.url]);
+    if (transport === "stdio") {
+      spawnAndInherit("codex", ["mcp", "add", serverName, process.execPath, CLI_PATH, ...stdioArgs]);
+    } else {
+      spawnAndInherit("codex", ["mcp", "add", serverName, "--url", getRegistrationTarget(targetName).url]);
+    }
     return;
   }
 
-  registerJsonConfig(agent, serverName, target.url);
+  registerJsonConfig(agent, serverName, transport, getRegistrationTarget(targetName).url, stdioArgs);
 }
 
-function handleInspect(_args: string[]): void {
-  const target = getRegistrationTarget("localmcp");
+function handlePlayground(): void {
+  const url = `http://localhost:${getPort()}/playground`;
+  console.log(`Opening playground at ${url}`);
+  const opener =
+    process.platform === "win32" ? "start" :
+    process.platform === "darwin" ? "open" : "xdg-open";
+  spawnAndInherit(opener, [url]);
+}
+
+function handleInspect(args: string[]): void {
+  const useStdio = args.includes("--stdio");
   const configPath = join(process.cwd(), ".localmcp-inspector.json");
+
+  const serverConfig = useStdio
+    ? {
+        type: "stdio",
+        command: process.execPath,
+        args: [CLI_PATH, "stdio"],
+      }
+    : {
+        type: "http",
+        url: getRegistrationTarget("localmcp").url,
+      };
 
   writeFileSync(
     configPath,
-    `${JSON.stringify({ mcpServers: { localmcp: { url: target.url } } }, null, 2)}\n`
+    `${JSON.stringify({ mcpServers: { localmcp: serverConfig } }, null, 2)}\n`
   );
 
-  console.log(`Starting MCP Inspector for ${target.url}`);
+  const label = useStdio ? "stdio" : serverConfig.url;
+  console.log(`Starting MCP Inspector (${useStdio ? "stdio" : "http"}: ${label})`);
+  if (!useStdio) console.log("Make sure the server is running: localmcp");
   console.log("If npx asks to install @modelcontextprotocol/inspector, approve it once.");
   spawnAndInherit("npx", [
     "@modelcontextprotocol/inspector",
@@ -162,33 +215,48 @@ function getRegistrationTarget(target: RegisterTarget): { url: string } {
   return { url: `http://localhost:${port}/mcp/${target}` };
 }
 
-function registerJsonConfig(agent: AgentName, serverName: string, url: string): void {
+function registerJsonConfig(
+  agent: AgentName,
+  serverName: string,
+  transport: string,
+  url: string,
+  stdioArgs: string[],
+): void {
+  const stdioEntry = { command: process.execPath, args: [CLI_PATH, ...stdioArgs] };
+  const httpEntry = { url };
+
   if (agent === "vscode") {
     const path = join(process.cwd(), ".vscode", "mcp.json");
     const config = readJson(path);
-    config.servers = { ...(config.servers ?? {}), [serverName]: { type: "http", url } };
+    const entry = transport === "stdio"
+      ? { type: "stdio", ...stdioEntry }
+      : { type: "http", ...httpEntry };
+    config.servers = { ...(config.servers ?? {}), [serverName]: entry };
     writeJson(path, config);
-    console.log(`Registered ${serverName} in ${path}`);
+    console.log(`Registered ${serverName} (${transport}) in ${path}`);
     return;
   }
 
   if (agent === "cursor") {
     const path = join(process.cwd(), ".cursor", "mcp.json");
     const config = readJson(path);
-    config.mcpServers = { ...(config.mcpServers ?? {}), [serverName]: { url } };
+    const entry = transport === "stdio" ? stdioEntry : httpEntry;
+    config.mcpServers = { ...(config.mcpServers ?? {}), [serverName]: entry };
     writeJson(path, config);
-    console.log(`Registered ${serverName} in ${path}`);
+    console.log(`Registered ${serverName} (${transport}) in ${path}`);
     return;
   }
 
+  // windsurf / antigravity
   const path =
     agent === "windsurf"
       ? join(homedir(), ".codeium", "windsurf", "mcp_config.json")
       : join(homedir(), ".gemini", "config", "mcp_config.json");
   const config = readJson(path);
-  config.mcpServers = { ...(config.mcpServers ?? {}), [serverName]: { serverUrl: url } };
+  const entry = transport === "stdio" ? stdioEntry : { serverUrl: url };
+  config.mcpServers = { ...(config.mcpServers ?? {}), [serverName]: entry };
   writeJson(path, config);
-  console.log(`Registered ${serverName} in ${path}`);
+  console.log(`Registered ${serverName} (${transport}) in ${path}`);
 }
 
 async function promptServiceConfig(service: ServiceName): Promise<void> {
@@ -389,9 +457,14 @@ Usage:
   localmcp list                    List configured services
   localmcp config                  Open settings in vim or $EDITOR
   localmcp config <service>        Configure one service inline
-  localmcp register                Select AI agent, then select service
+  localmcp register                Select AI agent, transport, and service
   localmcp register codex --service figma
-  localmcp inspect                 Open MCP Inspector
+  localmcp register codex --service figma --stdio
+  localmcp stdio                   Run as stdio MCP server (combined)
+  localmcp stdio <service>         Run as stdio MCP server for one service
+  localmcp inspect                 Open MCP Inspector (HTTP, server must be running)
+  localmcp inspect --stdio         Open MCP Inspector using stdio transport
+  localmcp playground              Open REST API playground in browser
   localmcp --version, -v           Show version
 
 Services:

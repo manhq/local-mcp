@@ -43,12 +43,37 @@ http://localhost:47001/mcp/google-chat
 
 ## Register with AI Agents
 
-**Claude Code** — `.claude/settings.local.json`
+Each agent supports two transports — pick whichever fits your setup:
+
+- **HTTP** — requires the server to be running (`localmcp`). Shared across agents.
+- **stdio** — the agent spawns the process on demand. No running server needed.
+
+Or use `localmcp register` to set up automatically.
+
+---
+
+### Claude Code
+
+**HTTP** — `.claude/settings.local.json`
 ```json
 {
   "mcpServers": {
     "google-chat": {
+      "type": "http",
       "url": "http://localhost:47001/mcp/google-chat"
+    }
+  }
+}
+```
+
+**stdio** — `.claude/settings.local.json`
+```json
+{
+  "mcpServers": {
+    "google-chat": {
+      "type": "stdio",
+      "command": "localmcp",
+      "args": ["stdio", "google-chat"]
     }
   }
 }
@@ -56,21 +81,44 @@ http://localhost:47001/mcp/google-chat
 
 Or register from the command line:
 ```bash
+# HTTP
 claude mcp add --transport http google-chat http://localhost:47001/mcp/google-chat
+
+# stdio
+claude mcp add google-chat localmcp stdio google-chat
 ```
 
-**Codex** — `~/.codex/config.toml`
+---
+
+### Codex
+
+**HTTP** — `~/.codex/config.toml`
 ```toml
 [mcp_servers.google-chat]
 url = "http://localhost:47001/mcp/google-chat"
 ```
 
-Or register from the command line:
-```bash
-codex mcp add google-chat --url http://localhost:47001/mcp/google-chat
+**stdio** — `~/.codex/config.toml`
+```toml
+[mcp_servers.google-chat]
+command = "localmcp"
+args = ["stdio", "google-chat"]
 ```
 
-**GitHub Copilot / VS Code** — `.vscode/mcp.json`
+Or register from the command line:
+```bash
+# HTTP
+codex mcp add google-chat --url http://localhost:47001/mcp/google-chat
+
+# stdio
+codex mcp add google-chat localmcp stdio google-chat
+```
+
+---
+
+### GitHub Copilot / VS Code
+
+**HTTP** — `.vscode/mcp.json`
 ```json
 {
   "servers": {
@@ -82,7 +130,24 @@ codex mcp add google-chat --url http://localhost:47001/mcp/google-chat
 }
 ```
 
-**Cursor** — `.cursor/mcp.json`
+**stdio** — `.vscode/mcp.json`
+```json
+{
+  "servers": {
+    "google-chat": {
+      "type": "stdio",
+      "command": "localmcp",
+      "args": ["stdio", "google-chat"]
+    }
+  }
+}
+```
+
+---
+
+### Cursor
+
+**HTTP** — `.cursor/mcp.json`
 ```json
 {
   "mcpServers": {
@@ -93,7 +158,23 @@ codex mcp add google-chat --url http://localhost:47001/mcp/google-chat
 }
 ```
 
-**Windsurf** — `~/.codeium/windsurf/mcp_config.json`
+**stdio** — `.cursor/mcp.json`
+```json
+{
+  "mcpServers": {
+    "google-chat": {
+      "command": "localmcp",
+      "args": ["stdio", "google-chat"]
+    }
+  }
+}
+```
+
+---
+
+### Windsurf
+
+**HTTP** — `~/.codeium/windsurf/mcp_config.json`
 ```json
 {
   "mcpServers": {
@@ -104,7 +185,23 @@ codex mcp add google-chat --url http://localhost:47001/mcp/google-chat
 }
 ```
 
-**Antigravity** — `~/.gemini/config/mcp_config.json`
+**stdio** — `~/.codeium/windsurf/mcp_config.json`
+```json
+{
+  "mcpServers": {
+    "google-chat": {
+      "command": "localmcp",
+      "args": ["stdio", "google-chat"]
+    }
+  }
+}
+```
+
+---
+
+### Antigravity
+
+**HTTP** — `~/.gemini/config/mcp_config.json`
 ```json
 {
   "mcpServers": {
@@ -114,6 +211,48 @@ codex mcp add google-chat --url http://localhost:47001/mcp/google-chat
   }
 }
 ```
+
+**stdio** — `~/.gemini/config/mcp_config.json`
+```json
+{
+  "mcpServers": {
+    "google-chat": {
+      "command": "localmcp",
+      "args": ["stdio", "google-chat"]
+    }
+  }
+}
+```
+
+---
+
+## REST API
+
+Call any Google Chat tool over plain HTTP — useful for scripts and automation.
+
+```bash
+# List all tools
+GET http://localhost:47001/api/google-chat
+
+# Call a tool
+POST http://localhost:47001/api/google-chat/search_conversations
+Content-Type: application/json
+
+{"query": "team standup"}
+
+POST http://localhost:47001/api/google-chat/send_message
+Content-Type: application/json
+
+{"conversationId": "spaces/AAAAAAA", "text": "Hello from the REST API!"}
+```
+
+Open the interactive playground:
+```bash
+localmcp playground
+# or: open http://localhost:47001/playground
+```
+
+---
 
 ## Tools
 

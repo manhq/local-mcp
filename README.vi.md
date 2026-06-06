@@ -12,62 +12,35 @@ MCP server tự host, tích hợp Figma, Jira và Google Chat cho các AI agent.
 ## Cài đặt & chạy
 
 ```bash
-# Cài dependencies
-npm install
-
-# Tạo file cấu hình
-cp .env.example .env
-```
-
-Điền credentials vào `.env` (xem tài liệu từng service bên dưới), sau đó:
-
-```bash
-# Chạy ở chế độ dev (tự reload khi sửa code)
-npm run dev
-
-# Build & chạy production
-npm run build
-npm start
-```
-
-Server mặc định chạy tại `http://localhost:47001`.
-
-```bash
-# Mở MCP Inspector (chạy song song với server)
-npm run inspect
-```
-
-## Chạy linh hoạt
-
-Nếu không muốn mở project mỗi lần chạy, có thể đăng ký command global khi đang phát triển local:
-
-```bash
-npm run build
-npm link
-localmcp
-```
-
-Sau khi `npm link`, lệnh `localmcp` chạy được ở bất kỳ thư mục nào.
-
-Khi publish lên npm, người dùng có thể cài bằng:
-
-```bash
 npm install -g @manhq/localmcp
-localmcp init
-localmcp config
+localmcp init     # tạo ~/localmcp/settings.json
+localmcp config   # điền credentials
+localmcp          # khởi động server
+```
+
+Hoặc clone về và chạy local:
+
+```bash
+npm install
+npm run build
+npm link          # đăng ký lệnh `localmcp` global
 localmcp
 ```
 
-Settings mặc định nằm ở:
+Settings mặc định nằm ở: `~/localmcp/settings.json`
+
+Biến môi trường được ưu tiên hơn settings file:
 
 ```bash
-~/localmcp/settings.json
+PORT=47002 localmcp
 ```
 
-Các command chính:
+## Các lệnh
 
 ```bash
-localmcp                         # Chạy MCP server
+localmcp                         # Chạy MCP server (HTTP)
+localmcp stdio                   # Chạy dưới dạng stdio MCP server (tất cả services)
+localmcp stdio <service>         # Chạy stdio cho một service cụ thể
 localmcp init                    # Tạo settings lần đầu
 localmcp list                    # Liệt kê services và biến còn thiếu
 localmcp config                  # Mở settings bằng vim hoặc $EDITOR
@@ -75,30 +48,59 @@ localmcp config figma            # Config riêng service Figma bằng prompt inl
 localmcp config figma token=figd_xxx
 localmcp register                # Chọn AI agent, sau đó chọn localmcp hoặc service
 localmcp register codex --service figma
-localmcp inspect                 # Mở MCP Inspector
+localmcp inspect                 # Mở MCP Inspector (HTTP, cần server đang chạy)
+localmcp inspect --stdio         # Mở MCP Inspector dùng stdio transport
+localmcp playground              # Mở REST API playground trên trình duyệt
 localmcp --version               # Xem phiên bản
 ```
 
-Biến môi trường vẫn được ưu tiên cao hơn settings file, nên có thể override nhanh:
+## Endpoints
 
-```bash
-PORT=47002 localmcp
-```
+Khi server đang chạy (`localmcp`):
 
-Publish package:
-
-```bash
-npm publish --access=public
-```
+| Transport | URL |
+|-----------|-----|
+| Streamable HTTP (tất cả) | `http://localhost:47001/mcp` |
+| Streamable HTTP (theo service) | `http://localhost:47001/mcp/<service>` |
+| Legacy SSE (tất cả) | `http://localhost:47001/sse` |
+| Legacy SSE (theo service) | `http://localhost:47001/sse/<service>` |
+| REST API | `http://localhost:47001/api` |
+| REST Playground | `http://localhost:47001/playground` |
+| Health check | `http://localhost:47001/health` |
 
 ## Đăng ký với AI Agents
 
-**Claude Code** — `.claude/settings.local.json`
+> **Tip:** Chạy `localmcp register` để đăng ký tự động, hoặc copy lệnh stdio từ log khi khởi động `localmcp`.
+
+Mỗi agent hỗ trợ hai chế độ transport — chọn cái phù hợp với setup của bạn:
+
+- **HTTP** — cần server đang chạy (`localmcp`). Nhanh hơn, dùng chung giữa các agent.
+- **stdio** — agent tự spawn process khi cần. Không cần server chạy sẵn, nhưng mỗi agent dùng process riêng.
+
+---
+
+### Claude Code
+
+**HTTP** — `.claude/settings.local.json`
 ```json
 {
   "mcpServers": {
     "localmcp": {
+      "type": "http",
       "url": "http://localhost:47001/mcp"
+    }
+  }
+}
+```
+
+**stdio** — `.claude/settings.local.json`
+```json
+{
+  "mcpServers": {
+    "localmcp": {
+      "type": "stdio",
+      "command": "localmcp",
+      "args": ["stdio"]
     }
   }
 }
@@ -106,21 +108,44 @@ npm publish --access=public
 
 Hoặc đăng ký bằng command line:
 ```bash
+# HTTP
 claude mcp add --transport http localmcp http://localhost:47001/mcp
+
+# stdio
+claude mcp add localmcp localmcp stdio
 ```
 
-**Codex** — `~/.codex/config.toml`
+---
+
+### Codex
+
+**HTTP** — `~/.codex/config.toml`
 ```toml
 [mcp_servers.localmcp]
 url = "http://localhost:47001/mcp"
 ```
 
-Hoặc đăng ký bằng command line:
-```bash
-codex mcp add localmcp --url http://localhost:47001/mcp
+**stdio** — `~/.codex/config.toml`
+```toml
+[mcp_servers.localmcp]
+command = "localmcp"
+args = ["stdio"]
 ```
 
-**GitHub Copilot / VS Code** — `.vscode/mcp.json`
+Hoặc đăng ký bằng command line:
+```bash
+# HTTP
+codex mcp add localmcp --url http://localhost:47001/mcp
+
+# stdio
+codex mcp add localmcp localmcp stdio
+```
+
+---
+
+### GitHub Copilot / VS Code
+
+**HTTP** — `.vscode/mcp.json`
 ```json
 {
   "servers": {
@@ -132,7 +157,24 @@ codex mcp add localmcp --url http://localhost:47001/mcp
 }
 ```
 
-**Cursor** — `.cursor/mcp.json`
+**stdio** — `.vscode/mcp.json`
+```json
+{
+  "servers": {
+    "localmcp": {
+      "type": "stdio",
+      "command": "localmcp",
+      "args": ["stdio"]
+    }
+  }
+}
+```
+
+---
+
+### Cursor
+
+**HTTP** — `.cursor/mcp.json`
 ```json
 {
   "mcpServers": {
@@ -143,7 +185,23 @@ codex mcp add localmcp --url http://localhost:47001/mcp
 }
 ```
 
-**Windsurf** — `~/.codeium/windsurf/mcp_config.json`
+**stdio** — `.cursor/mcp.json`
+```json
+{
+  "mcpServers": {
+    "localmcp": {
+      "command": "localmcp",
+      "args": ["stdio"]
+    }
+  }
+}
+```
+
+---
+
+### Windsurf
+
+**HTTP** — `~/.codeium/windsurf/mcp_config.json`
 ```json
 {
   "mcpServers": {
@@ -154,7 +212,23 @@ codex mcp add localmcp --url http://localhost:47001/mcp
 }
 ```
 
-**Antigravity** — `~/.gemini/config/mcp_config.json`
+**stdio** — `~/.codeium/windsurf/mcp_config.json`
+```json
+{
+  "mcpServers": {
+    "localmcp": {
+      "command": "localmcp",
+      "args": ["stdio"]
+    }
+  }
+}
+```
+
+---
+
+### Antigravity
+
+**HTTP** — `~/.gemini/config/mcp_config.json`
 ```json
 {
   "mcpServers": {
@@ -165,25 +239,62 @@ codex mcp add localmcp --url http://localhost:47001/mcp
 }
 ```
 
-## Kiểm tra trạng thái
-
+**stdio** — `~/.gemini/config/mcp_config.json`
+```json
+{
+  "mcpServers": {
+    "localmcp": {
+      "command": "localmcp",
+      "args": ["stdio"]
+    }
+  }
+}
 ```
-GET http://localhost:47001/health
+
+---
+
+## REST API
+
+REST API cho phép gọi bất kỳ tool nào qua HTTP thông thường — tiện cho script, automation và playground.
+
+```bash
+# Liệt kê services
+GET http://localhost:47001/api
+
+# Liệt kê tools của một service
+GET http://localhost:47001/api/figma
+GET http://localhost:47001/api/atlassian
+
+# Gọi một tool
+POST http://localhost:47001/api/figma/whoami
+POST http://localhost:47001/api/atlassian/getJiraIssue
+Content-Type: application/json
+
+{"issueIdOrKey": "PROJ-123"}
+
+# OpenAPI spec
+GET http://localhost:47001/api/openapi.json
+
+# Interactive playground
+GET http://localhost:47001/playground
 ```
 
-Trả về danh sách services đang active và các endpoints tương ứng.
+Hoặc mở playground bằng lệnh:
+```bash
+localmcp playground
+```
 
 ---
 
 ## Danh sách services
 
-| Service | Endpoint riêng | Tài liệu |
+| Service | HTTP endpoint | Tài liệu |
 |---------|---------------|----------|
 | Figma | `/mcp/figma` | [EN](docs/figma.md) / [VI](docs/vi/figma.md) |
 | Atlassian | `/mcp/atlassian` | [EN](docs/atlassian.md) / [VI](docs/vi/atlassian.md) |
 | Google Chat | `/mcp/google-chat` | [EN](docs/google-chat.md) / [VI](docs/vi/google-chat.md) |
 
-Endpoint `/mcp` là combined — gộp tất cả services đang active vào một server.
+Endpoint `/mcp` là combined — gộp tất cả services đang active vào một server, tên tool có prefix theo service (`figma_`, `atlassian_`, `gchat_`).
 
 Mỗi service chỉ được bật khi đủ biến môi trường. Xem tài liệu từng service để biết biến nào cần thiết.
 
@@ -211,7 +322,7 @@ import { registerXxxTools } from "./services/xxx/index.js";
 
 const SERVICE_REGISTRY = {
   // ...services hiện có...
-  xxx: { register: registerXxxTools, enabled: !!env.xxx },
+  xxx: { register: registerXxxTools, combinedPrefix: "xxx", enabled: !!env.xxx },
 };
 ```
 
@@ -236,4 +347,4 @@ XXX_API_KEY=
 
 ### 4. Viết tài liệu
 
-Tạo `docs/<tên-service>.md` theo mẫu các service hiện có, sau đó thêm dòng vào bảng **Danh sách services** ở README này.
+Tạo `docs/<tên-service>.md` và `docs/vi/<tên-service>.md`, sau đó thêm dòng vào bảng **Danh sách services** ở cả hai README.
