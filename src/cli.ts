@@ -421,7 +421,8 @@ async function ask(
 }
 
 function openEditor(path: string): void {
-  const editor = process.env["EDITOR"] ?? process.env["VISUAL"] ?? "vim";
+  const defaultEditor = process.platform === "win32" ? "notepad" : "vim";
+  const editor = process.env["EDITOR"] ?? process.env["VISUAL"] ?? defaultEditor;
   spawnAndInherit(editor, [path]);
 }
 
@@ -455,7 +456,7 @@ Usage:
   localmcp                         Run the MCP server
   localmcp init                    Create ~/localmcp/settings.json
   localmcp list                    List configured services
-  localmcp config                  Open settings in vim or $EDITOR
+  localmcp config                  Open settings in $EDITOR (vim/notepad fallback)
   localmcp config <service>        Configure one service inline
   localmcp register                Select AI agent, transport, and service
   localmcp register codex --service figma
