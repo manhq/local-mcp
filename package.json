@@ -4,7 +4,7 @@
   "description": "Local HTTP MCP server for Figma, Atlassian, and Google Chat with a single CLI.",
   "type": "module",
   "license": "UNLICENSED",
-  "homepage": "https://github.com/manhq/localmcp",
+  "homepage": "https://github.com/manhq/local-mcp",
   "keywords": [
     "mcp",
     "model-context-protocol",
