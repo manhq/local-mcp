@@ -171,8 +171,8 @@ function handlePlayground(): void {
   const url = `http://localhost:${getPort()}/playground`;
   console.log(`Opening playground at ${url}`);
   if (process.platform === "win32") {
-    // "start" is a cmd.exe built-in, must be called via cmd /c
-    spawn("cmd", ["/c", "start", "", url], { stdio: "inherit" });
+    // Start-Process works in both cmd and PowerShell
+    spawn("powershell", ["-NoProfile", "-Command", `Start-Process '${url}'`], { stdio: "inherit" });
   } else {
     const opener = process.platform === "darwin" ? "open" : "xdg-open";
     spawnAndInherit(opener, [url]);
@@ -429,8 +429,19 @@ function openEditor(path: string): void {
   spawnAndInherit(editor, [path]);
 }
 
+// npm global packages are installed as .cmd wrappers on Windows.
+// Resolving them directly avoids shell dependency (works in cmd, PowerShell, Windows Terminal).
+const WINDOWS_NPM_COMMANDS = new Set(["npx", "npm", "claude", "codex"]);
+
+function resolveCommand(command: string): string {
+  if (process.platform === "win32" && WINDOWS_NPM_COMMANDS.has(command)) {
+    return `${command}.cmd`;
+  }
+  return command;
+}
+
 function spawnAndInherit(command: string, args: string[]): void {
-  const child = spawn(command, args, { stdio: "inherit", shell: process.platform === "win32" });
+  const child = spawn(resolveCommand(command), args, { stdio: "inherit" });
 
   child.on("error", (error) => {
     console.error(`Could not run ${command}: ${error.message}`);
