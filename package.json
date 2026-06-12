@@ -1,6 +1,6 @@
 {
   "name": "@manhq/localmcp",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Local HTTP MCP server for Figma, Atlassian, and Google Chat with a single CLI.",
   "type": "module",
   "license": "UNLICENSED",

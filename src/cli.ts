@@ -170,10 +170,13 @@ async function handleRegister(args: string[]): Promise<void> {
 function handlePlayground(): void {
   const url = `http://localhost:${getPort()}/playground`;
   console.log(`Opening playground at ${url}`);
-  const opener =
-    process.platform === "win32" ? "start" :
-    process.platform === "darwin" ? "open" : "xdg-open";
-  spawnAndInherit(opener, [url]);
+  if (process.platform === "win32") {
+    // "start" is a cmd.exe built-in, must be called via cmd /c
+    spawn("cmd", ["/c", "start", "", url], { stdio: "inherit" });
+  } else {
+    const opener = process.platform === "darwin" ? "open" : "xdg-open";
+    spawnAndInherit(opener, [url]);
+  }
 }
 
 function handleInspect(args: string[]): void {
@@ -427,7 +430,7 @@ function openEditor(path: string): void {
 }
 
 function spawnAndInherit(command: string, args: string[]): void {
-  const child = spawn(command, args, { stdio: "inherit" });
+  const child = spawn(command, args, { stdio: "inherit", shell: process.platform === "win32" });
 
   child.on("error", (error) => {
     console.error(`Could not run ${command}: ${error.message}`);
