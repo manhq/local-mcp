@@ -252,7 +252,7 @@ localmcp playground
 |------|-------------|
 | `getJiraIssue` | Gets issue details by ID or key, for example `PROJECT-123`. |
 | `searchJiraIssuesUsingJql` | Searches issues with JQL. |
-| `createJiraIssue` | Creates a new issue in a project. |
+| `createJiraIssue` | Creates a new issue or sub-task in a project. For sub-tasks, use a sub-task issue type and provide `parentKey` or `parentId`. |
 | `editJiraIssue` | Updates summary, description, assignee, or priority. |
 | `transitionJiraIssue` | Moves an issue through workflow states, for example to "In Progress" or "Done". |
 | `getTransitionsForJiraIssue` | Lists available transitions for an issue. |
@@ -264,6 +264,17 @@ localmcp playground
 | `getIssueLinkTypes` | Lists issue link types, such as blocks or duplicates. |
 | `getJiraIssueRemoteIssueLinks` | Lists external links attached to an issue, for example Confluence pages. |
 | `lookupJiraAccountId` | Finds a user's account ID by name or email. |
+
+Create a Jira sub-task:
+
+```json
+{
+  "projectKey": "PROJ",
+  "summary": "Implement validation",
+  "issueType": "Subtask",
+  "parentKey": "PROJ-123"
+}
+```
 
 ### Confluence
 

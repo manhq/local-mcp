@@ -47,16 +47,18 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
   server.registerTool(
     p("createJiraIssue"),
     {
-      description: "Create a new Jira issue in a project. Returns the created issue key and URL.",
+      description: "Create a new Jira issue in a project. Returns the created issue key and URL. To create a subtask, set issueType to a subtask issue type and provide parentKey or parentId.",
       inputSchema: z.object({
         projectKey: z.string().describe("Project key, e.g. 'PROJ'"),
         summary: z.string().describe("Issue title/summary"),
-        issueType: z.string().default("Task").describe("Issue type: 'Task', 'Bug', 'Story', etc."),
+        issueType: z.string().default("Task").describe("Issue type: 'Task', 'Bug', 'Story', 'Subtask', etc."),
         description: z.string().optional().describe("Issue description (plain text)"),
         assigneeAccountId: z.string().optional().describe("Assignee account ID"),
+        parentKey: z.string().optional().describe("Parent issue key, e.g. 'PROJ-123'. Required when creating a subtask unless parentId is provided."),
+        parentId: z.string().optional().describe("Parent issue ID. Required when creating a subtask unless parentKey is provided."),
       }),
     },
-    async ({ projectKey, summary, issueType, description, assigneeAccountId }) => {
+    async ({ projectKey, summary, issueType, description, assigneeAccountId, parentKey, parentId }) => {
       try {
         const fields: Record<string, unknown> = {
           project: { key: projectKey },
@@ -70,6 +72,12 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
           };
         }
         if (assigneeAccountId) fields.assignee = { accountId: assigneeAccountId };
+
+        const parentField = toJiraParentField(parentKey, parentId);
+        if (isSubtaskIssueType(issueType) && !parentField) {
+          throw new Error("Creating a Jira subtask requires parentKey or parentId.");
+        }
+        if (parentField) fields.parent = parentField;
 
         const { data } = await getJiraClient().post<{ id: string; key: string; self: string }>("/issue", { fields });
         return toTextResponse({ id: data.id, key: data.key, url: data.self });
@@ -298,4 +306,14 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
       } catch (error) { return handleToolError(error); }
     }
   );
+}
+
+function isSubtaskIssueType(issueType: string): boolean {
+  return ["subtask", "sub-task", "sub task"].includes(issueType.trim().toLowerCase());
+}
+
+function toJiraParentField(parentKey?: string, parentId?: string): { key: string } | { id: string } | undefined {
+  if (parentKey) return { key: parentKey };
+  if (parentId) return { id: parentId };
+  return undefined;
 }

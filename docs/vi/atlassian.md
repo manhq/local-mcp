@@ -252,7 +252,7 @@ localmcp playground
 |------|-------|
 | `getJiraIssue` | Lấy chi tiết issue theo ID hoặc key (ví dụ `PROJECT-123`) |
 | `searchJiraIssuesUsingJql` | Tìm kiếm issues bằng JQL |
-| `createJiraIssue` | Tạo issue mới trong một project |
+| `createJiraIssue` | Tạo issue hoặc sub-task mới trong một project. Với sub-task, dùng issue type dạng sub-task và truyền `parentKey` hoặc `parentId`. |
 | `editJiraIssue` | Cập nhật summary, description, assignee, hoặc priority |
 | `transitionJiraIssue` | Chuyển trạng thái workflow (ví dụ sang "In Progress", "Done") |
 | `getTransitionsForJiraIssue` | Liệt kê các transitions khả dụng của một issue |
@@ -264,6 +264,17 @@ localmcp playground
 | `getIssueLinkTypes` | Liệt kê các kiểu liên kết issue (blocks, duplicates, v.v.) |
 | `getJiraIssueRemoteIssueLinks` | Liệt kê các link ngoài gắn vào issue (ví dụ trang Confluence) |
 | `lookupJiraAccountId` | Tìm account ID của user theo tên hoặc email |
+
+Tạo Jira sub-task:
+
+```json
+{
+  "projectKey": "PROJ",
+  "summary": "Implement validation",
+  "issueType": "Subtask",
+  "parentKey": "PROJ-123"
+}
+```
 
 ### Confluence
 
