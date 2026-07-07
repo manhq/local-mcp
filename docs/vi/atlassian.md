@@ -252,18 +252,47 @@ localmcp playground
 |------|-------|
 | `getJiraIssue` | Lấy chi tiết issue theo ID hoặc key (ví dụ `PROJECT-123`) |
 | `searchJiraIssuesUsingJql` | Tìm kiếm issues bằng JQL |
-| `createJiraIssue` | Tạo issue hoặc sub-task mới trong một project. Với sub-task, dùng issue type dạng sub-task và truyền `parentKey` hoặc `parentId`. |
-| `editJiraIssue` | Cập nhật summary, description, assignee, hoặc priority |
-| `transitionJiraIssue` | Chuyển trạng thái workflow (ví dụ sang "In Progress", "Done") |
-| `getTransitionsForJiraIssue` | Liệt kê các transitions khả dụng của một issue |
+| `createJiraIssue` | Tạo issue hoặc sub-task mới trong một project. Với sub-task, dùng issue type dạng sub-task và truyền `parentKey` hoặc `parentId`. Hỗ trợ `customFields`. |
+| `editJiraIssue` | Cập nhật summary, description, assignee, priority, field bất kỳ, hoặc custom fields |
+| `transitionJiraIssue` | Chuyển trạng thái workflow (ví dụ sang "In Progress", "Done"). Hỗ trợ field bắt buộc trên transition screen. |
+| `getTransitionsForJiraIssue` | Liệt kê các transitions khả dụng của một issue. Dùng `includeFields` để xem field trên transition screen. |
 | `addCommentToJiraIssue` | Đăng comment lên issue |
 | `addWorklogToJiraIssue` | Ghi nhận thời gian làm việc lên issue |
 | `getVisibleJiraProjects` | Liệt kê tất cả projects có quyền truy cập |
 | `getJiraProjectIssueTypesMetadata` | Liệt kê các loại issue trong một project |
 | `getJiraIssueTypeMetaWithFields` | Lấy metadata fields khi tạo issue theo loại cụ thể |
+| `getJiraIssueEditMetadata` | Lấy metadata các field có thể chỉnh sửa của một issue |
+| `getJiraFields` | Liệt kê Jira fields và map tên hiển thị sang ID như `customfield_10015` |
 | `getIssueLinkTypes` | Liệt kê các kiểu liên kết issue (blocks, duplicates, v.v.) |
 | `getJiraIssueRemoteIssueLinks` | Liệt kê các link ngoài gắn vào issue (ví dụ trang Confluence) |
 | `lookupJiraAccountId` | Tìm account ID của user theo tên hoặc email |
+
+Cập nhật custom fields:
+
+```json
+{
+  "issueIdOrKey": "PROJ-123",
+  "customFields": {
+    "customfield_10015": "2026-07-07",
+    "customfield_10016": "2026-07-10"
+  }
+}
+```
+
+Hoàn tất transition có custom fields bắt buộc:
+
+```json
+{
+  "issueIdOrKey": "PROJ-123",
+  "status": "Done",
+  "customFields": {
+    "customfield_10015": "2026-07-07",
+    "customfield_10016": "2026-07-10"
+  }
+}
+```
+
+Dùng `getJiraFields` với `{"query":"Target"}` hoặc `getTransitionsForJiraIssue` với `{"includeFields":true}` để tìm đúng field ID cho tên hiển thị như "Target start" và "Target end".
 
 Tạo Jira sub-task:
 

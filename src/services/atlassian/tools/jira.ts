@@ -5,6 +5,22 @@ import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { JiraIssue, JiraTransition, JiraUser } from "../types.js";
 
+const jiraFieldValueSchema = z.union([
+  z.string(),
+  z.number(),
+  z.boolean(),
+  z.null(),
+  z.array(z.unknown()),
+  z.record(z.string(), z.unknown()),
+]);
+
+const jiraFieldsSchema = z.record(z.string(), jiraFieldValueSchema);
+
+const jiraCustomFieldsSchema = z.record(
+  z.string().regex(/^customfield_\d+$/, "Use Jira custom field IDs like customfield_10015."),
+  jiraFieldValueSchema
+);
+
 export function registerJiraTools(server: McpServer, prefix?: string): void {
   const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
 
@@ -47,7 +63,7 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
   server.registerTool(
     p("createJiraIssue"),
     {
-      description: "Create a new Jira issue in a project. Returns the created issue key and URL. To create a subtask, set issueType to a subtask issue type and provide parentKey or parentId.",
+      description: "Create a new Jira issue in a project. Returns the created issue key and URL. To create a subtask, set issueType to a subtask issue type and provide parentKey or parentId. Supports customFields keyed by Jira field ID.",
       inputSchema: z.object({
         projectKey: z.string().describe("Project key, e.g. 'PROJ'"),
         summary: z.string().describe("Issue title/summary"),
@@ -56,9 +72,10 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
         assigneeAccountId: z.string().optional().describe("Assignee account ID"),
         parentKey: z.string().optional().describe("Parent issue key, e.g. 'PROJ-123'. Required when creating a subtask unless parentId is provided."),
         parentId: z.string().optional().describe("Parent issue ID. Required when creating a subtask unless parentKey is provided."),
+        customFields: jiraCustomFieldsSchema.optional().describe("Custom field values keyed by Jira field ID, e.g. {\"customfield_10015\":\"2026-07-07\"}. Date fields usually use YYYY-MM-DD."),
       }),
     },
-    async ({ projectKey, summary, issueType, description, assigneeAccountId, parentKey, parentId }) => {
+    async ({ projectKey, summary, issueType, description, assigneeAccountId, parentKey, parentId, customFields }) => {
       try {
         const fields: Record<string, unknown> = {
           project: { key: projectKey },
@@ -78,6 +95,7 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
           throw new Error("Creating a Jira subtask requires parentKey or parentId.");
         }
         if (parentField) fields.parent = parentField;
+        applyJiraFields(fields, customFields);
 
         const { data } = await getJiraClient().post<{ id: string; key: string; self: string }>("/issue", { fields });
         return toTextResponse({ id: data.id, key: data.key, url: data.self });
@@ -88,16 +106,18 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
   server.registerTool(
     p("editJiraIssue"),
     {
-      description: "Modify field values of an existing Jira issue: summary, description, assignee, or priority.",
+      description: "Modify field values of an existing Jira issue. Supports summary, description, assignee, priority, arbitrary Jira fields, and customFields keyed by Jira field ID.",
       inputSchema: z.object({
         issueIdOrKey: z.string().describe("Issue ID or key"),
         summary: z.string().optional().describe("New summary"),
         description: z.string().optional().describe("New description (plain text)"),
         assigneeAccountId: z.string().optional().describe("New assignee account ID"),
         priority: z.string().optional().describe("Priority name, e.g. 'High', 'Medium', 'Low'"),
+        fields: jiraFieldsSchema.optional().describe("Additional Jira fields keyed by field ID or system field name, e.g. {\"labels\":[\"backend\"]}."),
+        customFields: jiraCustomFieldsSchema.optional().describe("Custom field values keyed by Jira field ID, e.g. {\"customfield_10015\":\"2026-07-07\"}. Date fields usually use YYYY-MM-DD."),
       }),
     },
-    async ({ issueIdOrKey, summary, description, assigneeAccountId, priority }) => {
+    async ({ issueIdOrKey, summary, description, assigneeAccountId, priority, fields: additionalFields, customFields }) => {
       try {
         const fields: Record<string, unknown> = {};
         if (summary) fields.summary = summary;
@@ -109,6 +129,11 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
         }
         if (assigneeAccountId) fields.assignee = { accountId: assigneeAccountId };
         if (priority) fields.priority = { name: priority };
+        applyJiraFields(fields, additionalFields, customFields);
+
+        if (Object.keys(fields).length === 0) {
+          throw new Error("At least one field value must be provided.");
+        }
 
         await getJiraClient().put(`/issue/${issueIdOrKey}`, { fields });
         return toTextResponse({ success: true, issueIdOrKey });
@@ -119,24 +144,56 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
   server.registerTool(
     p("transitionJiraIssue"),
     {
-      description: "Execute a workflow state change on a Jira issue, e.g. move to 'In Progress' or 'Done'.",
+      description: "Execute a workflow state change on a Jira issue. Supports field values required by transition screens, including customFields keyed by Jira field ID.",
       inputSchema: z.object({
         issueIdOrKey: z.string().describe("Issue ID or key"),
-        status: z.string().describe("Target status name, e.g. 'In Progress', 'Done'"),
+        status: z.string().optional().describe("Target status name, e.g. 'In Progress', 'Done'. Required unless transitionId is provided."),
+        transitionId: z.string().optional().describe("Exact Jira transition ID. Use this when transition names are ambiguous."),
+        fields: jiraFieldsSchema.optional().describe("Field values to submit with the transition, keyed by Jira field ID or system field name."),
+        customFields: jiraCustomFieldsSchema.optional().describe("Custom field values to submit with the transition, e.g. {\"customfield_10015\":\"2026-07-07\"}. Date fields usually use YYYY-MM-DD."),
       }),
     },
-    async ({ issueIdOrKey, status }) => {
+    async ({ issueIdOrKey, status, transitionId, fields: additionalFields, customFields }) => {
       try {
         const { data } = await getJiraClient().get<{ transitions: JiraTransition[] }>(
           `/issue/${issueIdOrKey}/transitions`
         );
-        const transition = data.transitions.find(t => t.name.toLowerCase() === status.toLowerCase());
-        if (!transition) {
-          const available = data.transitions.map(t => t.name).join(", ");
-          return toTextResponse(`Status "${status}" not found. Available: ${available}`);
+        if (!status && !transitionId) {
+          throw new Error("Provide either status or transitionId.");
         }
-        await getJiraClient().post(`/issue/${issueIdOrKey}/transitions`, { transition: { id: transition.id } });
-        return toTextResponse({ success: true, issueIdOrKey, status });
+
+        const normalizedStatus = status?.trim().toLowerCase();
+        const transition = transitionId
+          ? data.transitions.find(t => t.id === transitionId)
+          : data.transitions.find(t =>
+              t.name.toLowerCase() === normalizedStatus
+              || t.to.name.toLowerCase() === normalizedStatus
+            );
+
+        if (!transition) {
+          const available = data.transitions.map(t => `${t.name} -> ${t.to.name}`).join(", ");
+          return toTextResponse(
+            transitionId
+              ? `Transition ID "${transitionId}" not found. Available: ${available}`
+              : `Status "${status}" not found. Available: ${available}`
+          );
+        }
+
+        const body: { transition: { id: string }; fields?: Record<string, unknown> } = {
+          transition: { id: transition.id },
+        };
+        const fields: Record<string, unknown> = {};
+        applyJiraFields(fields, additionalFields, customFields);
+        if (Object.keys(fields).length > 0) body.fields = fields;
+
+        await getJiraClient().post(`/issue/${issueIdOrKey}/transitions`, body);
+        return toTextResponse({
+          success: true,
+          issueIdOrKey,
+          transition: transition.name,
+          status: transition.to.name,
+          transitionId: transition.id,
+        });
       } catch (error) { return handleToolError(error); }
     }
   );
@@ -144,15 +201,17 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
   server.registerTool(
     p("getTransitionsForJiraIssue"),
     {
-      description: "List all available workflow transitions for a Jira issue.",
+      description: "List all available workflow transitions for a Jira issue. Use includeFields to see fields required by transition screens.",
       inputSchema: z.object({
         issueIdOrKey: z.string().describe("Issue ID or key"),
+        includeFields: z.boolean().default(false).describe("When true, expands transition field metadata including required fields."),
       }),
     },
-    async ({ issueIdOrKey }) => {
+    async ({ issueIdOrKey, includeFields }) => {
       try {
         const { data } = await getJiraClient().get<{ transitions: JiraTransition[] }>(
-          `/issue/${issueIdOrKey}/transitions`
+          `/issue/${issueIdOrKey}/transitions`,
+          includeFields ? { params: { expand: "transitions.fields" } } : undefined
         );
         return toTextResponse(data.transitions);
       } catch (error) { return handleToolError(error); }
@@ -258,6 +317,67 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
   );
 
   server.registerTool(
+    p("getJiraIssueEditMetadata"),
+    {
+      description: "Get editable field metadata for a Jira issue. Use this to confirm custom field IDs and field shapes before editJiraIssue.",
+      inputSchema: z.object({
+        issueIdOrKey: z.string().describe("Issue ID or key"),
+      }),
+    },
+    async ({ issueIdOrKey }) => {
+      try {
+        const { data } = await getJiraClient().get(`/issue/${issueIdOrKey}/editmeta`);
+        return toTextResponse(data);
+      } catch (error) { return handleToolError(error); }
+    }
+  );
+
+  server.registerTool(
+    p("getJiraFields"),
+    {
+      description: "List Jira fields and optionally filter by name or ID. Use this to map display names such as 'Target start' to customfield IDs.",
+      inputSchema: z.object({
+        query: z.string().optional().describe("Optional case-insensitive name or ID filter, e.g. 'Target start' or 'customfield_10015'."),
+        customOnly: z.boolean().default(false).describe("When true, returns only custom fields."),
+      }),
+    },
+    async ({ query, customOnly }) => {
+      try {
+        const { data } = await getJiraClient().get<Array<{
+          id: string;
+          name: string;
+          custom?: boolean;
+          orderable?: boolean;
+          navigable?: boolean;
+          searchable?: boolean;
+          clauseNames?: string[];
+          schema?: unknown;
+        }>>("/field");
+        const normalizedQuery = query?.trim().toLowerCase();
+        const fields = data
+          .filter(field => !customOnly || field.custom || field.id.startsWith("customfield_"))
+          .filter(field => {
+            if (!normalizedQuery) return true;
+            return field.id.toLowerCase().includes(normalizedQuery)
+              || field.name.toLowerCase().includes(normalizedQuery)
+              || field.clauseNames?.some(name => name.toLowerCase().includes(normalizedQuery));
+          })
+          .map(field => ({
+            id: field.id,
+            name: field.name,
+            custom: Boolean(field.custom),
+            orderable: field.orderable,
+            navigable: field.navigable,
+            searchable: field.searchable,
+            clauseNames: field.clauseNames,
+            schema: field.schema,
+          }));
+        return toTextResponse(fields);
+      } catch (error) { return handleToolError(error); }
+    }
+  );
+
+  server.registerTool(
     p("getIssueLinkTypes"),
     {
       description: "Retrieve all available issue link types (e.g. 'blocks', 'duplicates', 'is cloned by').",
@@ -316,4 +436,13 @@ function toJiraParentField(parentKey?: string, parentId?: string): { key: string
   if (parentKey) return { key: parentKey };
   if (parentId) return { id: parentId };
   return undefined;
+}
+
+function applyJiraFields(target: Record<string, unknown>, ...sources: Array<Record<string, unknown> | undefined>): void {
+  for (const source of sources) {
+    if (!source) continue;
+    for (const [key, value] of Object.entries(source)) {
+      target[key] = value;
+    }
+  }
 }

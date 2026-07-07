@@ -18,6 +18,7 @@ export interface JiraTransition {
   id: string;
   name: string;
   to: { name: string };
+  fields?: Record<string, unknown>;
 }
 
 export interface JiraUser {

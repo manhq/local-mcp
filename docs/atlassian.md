@@ -252,18 +252,47 @@ localmcp playground
 |------|-------------|
 | `getJiraIssue` | Gets issue details by ID or key, for example `PROJECT-123`. |
 | `searchJiraIssuesUsingJql` | Searches issues with JQL. |
-| `createJiraIssue` | Creates a new issue or sub-task in a project. For sub-tasks, use a sub-task issue type and provide `parentKey` or `parentId`. |
-| `editJiraIssue` | Updates summary, description, assignee, or priority. |
-| `transitionJiraIssue` | Moves an issue through workflow states, for example to "In Progress" or "Done". |
-| `getTransitionsForJiraIssue` | Lists available transitions for an issue. |
+| `createJiraIssue` | Creates a new issue or sub-task in a project. For sub-tasks, use a sub-task issue type and provide `parentKey` or `parentId`. Supports `customFields`. |
+| `editJiraIssue` | Updates summary, description, assignee, priority, arbitrary fields, or custom fields. |
+| `transitionJiraIssue` | Moves an issue through workflow states, for example to "In Progress" or "Done". Supports transition screen fields. |
+| `getTransitionsForJiraIssue` | Lists available transitions for an issue. Set `includeFields` to see transition screen fields. |
 | `addCommentToJiraIssue` | Adds a comment to an issue. |
 | `addWorklogToJiraIssue` | Logs work time on an issue. |
 | `getVisibleJiraProjects` | Lists all projects the account can access. |
 | `getJiraProjectIssueTypesMetadata` | Lists issue types in a project. |
 | `getJiraIssueTypeMetaWithFields` | Gets field metadata for creating a specific issue type. |
+| `getJiraIssueEditMetadata` | Gets editable field metadata for an issue. |
+| `getJiraFields` | Lists Jira fields and maps display names to IDs such as `customfield_10015`. |
 | `getIssueLinkTypes` | Lists issue link types, such as blocks or duplicates. |
 | `getJiraIssueRemoteIssueLinks` | Lists external links attached to an issue, for example Confluence pages. |
 | `lookupJiraAccountId` | Finds a user's account ID by name or email. |
+
+Update custom fields:
+
+```json
+{
+  "issueIdOrKey": "PROJ-123",
+  "customFields": {
+    "customfield_10015": "2026-07-07",
+    "customfield_10016": "2026-07-10"
+  }
+}
+```
+
+Complete a transition that requires custom fields:
+
+```json
+{
+  "issueIdOrKey": "PROJ-123",
+  "status": "Done",
+  "customFields": {
+    "customfield_10015": "2026-07-07",
+    "customfield_10016": "2026-07-10"
+  }
+}
+```
+
+Use `getJiraFields` with `{"query":"Target"}` or `getTransitionsForJiraIssue` with `{"includeFields":true}` to find the exact field IDs for display names such as "Target start" and "Target end".
 
 Create a Jira sub-task:
 
