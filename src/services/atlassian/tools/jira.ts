@@ -41,6 +41,43 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
   );
 
   server.registerTool(
+    p("getJiraAttachmentContent"),
+    {
+      description: "Download the content of a Jira attachment by its ID (from getJiraIssue attachment metadata). Returns text content for text-based files, or base64-encoded content for binary files, along with filename, mimeType, and size.",
+      inputSchema: z.object({
+        attachmentId: z.string().describe("Attachment ID, e.g. '656461'"),
+      }),
+    },
+    async ({ attachmentId }) => {
+      try {
+        const client = getJiraClient();
+        const { data: meta } = await client.get<{ filename?: string; mimeType?: string; size?: number }>(
+          `/attachment/${attachmentId}`
+        );
+        if (meta.size && meta.size > MAX_ATTACHMENT_BYTES) {
+          throw new Error(
+            `Attachment "${meta.filename ?? attachmentId}" is ${meta.size} bytes, exceeding the ${MAX_ATTACHMENT_BYTES} byte limit for tool responses.`
+          );
+        }
+        // Jira answers with a 303 to a signed api.media.atlassian.com URL; axios follows it
+        // and drops the Basic Authorization header on the cross-host hop.
+        const { data, headers } = await client.get<ArrayBuffer>(`/attachment/content/${attachmentId}`, {
+          responseType: "arraybuffer",
+          headers: { Accept: "*/*" },
+        });
+        const buffer = Buffer.from(data);
+        const mimeType = meta.mimeType ?? String(headers["content-type"] ?? "application/octet-stream");
+        const result = { attachmentId, filename: meta.filename, mimeType, size: buffer.length };
+        return toTextResponse(
+          isTextMimeType(mimeType)
+            ? { ...result, encoding: "utf-8", content: buffer.toString("utf-8") }
+            : { ...result, encoding: "base64", content: buffer.toString("base64") }
+        );
+      } catch (error) { return handleToolError(error); }
+    }
+  );
+
+  server.registerTool(
     p("searchJiraIssuesUsingJql"),
     {
       description: "Search Jira issues using JQL (Jira Query Language). Example: 'project = PROJ AND status = \"In Progress\"'.",
@@ -426,6 +463,26 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
       } catch (error) { return handleToolError(error); }
     }
   );
+}
+
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
+
+const TEXT_MIME_TYPES = new Set([
+  "application/json",
+  "application/xml",
+  "application/javascript",
+  "application/x-yaml",
+  "application/yaml",
+  "application/x-sh",
+  "image/svg+xml",
+]);
+
+function isTextMimeType(mimeType: string): boolean {
+  const normalized = mimeType.split(";")[0].trim().toLowerCase();
+  return normalized.startsWith("text/")
+    || TEXT_MIME_TYPES.has(normalized)
+    || normalized.endsWith("+json")
+    || normalized.endsWith("+xml");
 }
 
 function isSubtaskIssueType(issueType: string): boolean {
