@@ -256,7 +256,8 @@ localmcp playground
 | `editJiraIssue` | Cập nhật summary, description, assignee, priority, field bất kỳ, hoặc custom fields |
 | `transitionJiraIssue` | Chuyển trạng thái workflow (ví dụ sang "In Progress", "Done"). Hỗ trợ field bắt buộc trên transition screen. |
 | `getTransitionsForJiraIssue` | Liệt kê các transitions khả dụng của một issue. Dùng `includeFields` để xem field trên transition screen. |
-| `addCommentToJiraIssue` | Đăng comment lên issue |
+| `addCommentToJiraIssue` | Đăng comment lên issue. Mention người dùng bằng `[~accountid:ACCOUNT_ID]`. |
+| `editJiraComment` | Sửa nội dung comment đã có. Hỗ trợ mention `[~accountid:ACCOUNT_ID]`. |
 | `addWorklogToJiraIssue` | Ghi nhận thời gian làm việc lên issue |
 | `getVisibleJiraProjects` | Liệt kê tất cả projects có quyền truy cập |
 | `getJiraProjectIssueTypesMetadata` | Liệt kê các loại issue trong một project |
@@ -266,6 +267,14 @@ localmcp playground
 | `getIssueLinkTypes` | Liệt kê các kiểu liên kết issue (blocks, duplicates, v.v.) |
 | `getJiraIssueRemoteIssueLinks` | Liệt kê các link ngoài gắn vào issue (ví dụ trang Confluence) |
 | `lookupJiraAccountId` | Tìm account ID của user theo tên hoặc email |
+
+### Định dạng văn bản (Jira)
+
+Trường comment và description nhận cú pháp Markdown rút gọn, tự chuyển sang Atlassian Document Format:
+
+- `**đậm**`, `*nghiêng*`, `++gạch chân++`, `~~gạch ngang~~`, `` `code` ``
+- Link `[text](url)`, mention `[~accountid:ACCOUNT_ID]` (user được notify — lấy ID bằng `lookupJiraAccountId`)
+- Heading `#`–`######`, bullet list `-`/`*`, ordered list `1.`, trích dẫn `>`, code block ` ``` `
 
 Cập nhật custom fields:
 

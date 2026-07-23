@@ -256,7 +256,8 @@ localmcp playground
 | `editJiraIssue` | Updates summary, description, assignee, priority, arbitrary fields, or custom fields. |
 | `transitionJiraIssue` | Moves an issue through workflow states, for example to "In Progress" or "Done". Supports transition screen fields. |
 | `getTransitionsForJiraIssue` | Lists available transitions for an issue. Set `includeFields` to see transition screen fields. |
-| `addCommentToJiraIssue` | Adds a comment to an issue. |
+| `addCommentToJiraIssue` | Adds a comment to an issue. Mention users with `[~accountid:ACCOUNT_ID]`. |
+| `editJiraComment` | Edits the text of an existing comment. Supports `[~accountid:ACCOUNT_ID]` mentions. |
 | `addWorklogToJiraIssue` | Logs work time on an issue. |
 | `getVisibleJiraProjects` | Lists all projects the account can access. |
 | `getJiraProjectIssueTypesMetadata` | Lists issue types in a project. |
@@ -266,6 +267,14 @@ localmcp playground
 | `getIssueLinkTypes` | Lists issue link types, such as blocks or duplicates. |
 | `getJiraIssueRemoteIssueLinks` | Lists external links attached to an issue, for example Confluence pages. |
 | `lookupJiraAccountId` | Finds a user's account ID by name or email. |
+
+### Rich text formatting (Jira)
+
+Comment and description fields accept lightweight Markdown, converted to Atlassian Document Format:
+
+- `**bold**`, `*italic*`, `++underline++`, `~~strike~~`, `` `code` ``
+- `[text](url)` links, `[~accountid:ACCOUNT_ID]` mentions (the user is notified — resolve the ID with `lookupJiraAccountId`)
+- `#`–`######` headings, `-`/`*` bullet lists, `1.` ordered lists, `>` blockquotes, ` ``` ` fenced code blocks
 
 Update custom fields:
 

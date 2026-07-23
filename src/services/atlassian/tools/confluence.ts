@@ -5,6 +5,20 @@ import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { ConfluencePage, ConfluenceSpace, ConfluenceComment } from "../types.js";
 
+// Matches Jira-native user mention tokens: [~accountid:5b10ac8d82e05b22cc7d4ef5]
+const MENTION_TOKEN = /\[~accountid:([^\]]+)\]/g;
+
+// Confluence storage format represents a user mention as an <ac:link> to a user,
+// so notifications only fire when this exact markup is present (not plain "@name").
+function applyConfluenceMentions(text: string): string {
+  return text.replace(
+    MENTION_TOKEN,
+    (_match, accountId) => `<ac:link><ri:user ri:account-id="${accountId}" /></ac:link>`
+  );
+}
+
+const MENTION_HINT = " Use [~accountid:ACCOUNT_ID] to mention/notify a user (resolve the ID via Jira lookupJiraAccountId).";
+
 export function registerConfluenceTools(server: McpServer, prefix?: string): void {
   const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
 
@@ -141,7 +155,7 @@ export function registerConfluenceTools(server: McpServer, prefix?: string): voi
       inputSchema: z.object({
         spaceId: z.string().describe("Space ID to create the page in"),
         title: z.string().describe("Page title"),
-        content: z.string().describe("Page body in plain text or HTML"),
+        content: z.string().describe("Page body in plain text or HTML." + MENTION_HINT),
         parentId: z.string().optional().describe("Parent page ID (optional)"),
       }),
     },
@@ -150,7 +164,7 @@ export function registerConfluenceTools(server: McpServer, prefix?: string): voi
         const body: Record<string, unknown> = {
           spaceId,
           title,
-          body: { representation: "storage", value: content },
+          body: { representation: "storage", value: applyConfluenceMentions(content) },
         };
         if (parentId) body.parentId = parentId;
 
@@ -167,7 +181,7 @@ export function registerConfluenceTools(server: McpServer, prefix?: string): voi
       inputSchema: z.object({
         pageId: z.string().describe("Page ID"),
         title: z.string().describe("Page title (required even if unchanged)"),
-        content: z.string().describe("New page body in plain text or HTML"),
+        content: z.string().describe("New page body in plain text or HTML." + MENTION_HINT),
         version: z.number().int().describe("Current version number of the page"),
       }),
     },
@@ -177,7 +191,7 @@ export function registerConfluenceTools(server: McpServer, prefix?: string): voi
           id: pageId,
           title,
           version: { number: version + 1 },
-          body: { representation: "storage", value: content },
+          body: { representation: "storage", value: applyConfluenceMentions(content) },
         });
         return toTextResponse({ id: data.id, title: data.title, version: data.version });
       } catch (error) { return handleToolError(error); }
@@ -190,7 +204,7 @@ export function registerConfluenceTools(server: McpServer, prefix?: string): voi
       description: "Add a footer comment to a Confluence page, or reply to an existing footer comment.",
       inputSchema: z.object({
         pageId: z.string().describe("Page ID"),
-        comment: z.string().describe("Comment text"),
+        comment: z.string().describe("Comment text." + MENTION_HINT),
         parentCommentId: z.string().optional().describe("Parent comment ID to reply to"),
       }),
     },
@@ -198,7 +212,7 @@ export function registerConfluenceTools(server: McpServer, prefix?: string): voi
       try {
         const body: Record<string, unknown> = {
           pageId,
-          body: { representation: "storage", value: comment },
+          body: { representation: "storage", value: applyConfluenceMentions(comment) },
         };
         if (parentCommentId) body.parentCommentId = parentCommentId;
 
@@ -214,7 +228,7 @@ export function registerConfluenceTools(server: McpServer, prefix?: string): voi
       description: "Create a text-anchored inline comment on a Confluence page.",
       inputSchema: z.object({
         pageId: z.string().describe("Page ID"),
-        comment: z.string().describe("Comment text"),
+        comment: z.string().describe("Comment text." + MENTION_HINT),
         inlineCommentProperties: z.object({
           textSelection: z.string().describe("The text to anchor the comment to"),
           textSelectionMatchCount: z.number().int().default(1).describe("Which occurrence to anchor to (default 1)"),
@@ -226,7 +240,7 @@ export function registerConfluenceTools(server: McpServer, prefix?: string): voi
       try {
         const { data } = await getConfluenceClient().post("/api/v2/inline-comments", {
           pageId,
-          body: { representation: "storage", value: comment },
+          body: { representation: "storage", value: applyConfluenceMentions(comment) },
           inlineCommentProperties,
         });
         return toTextResponse(data);

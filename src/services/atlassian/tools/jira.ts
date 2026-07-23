@@ -4,6 +4,7 @@ import { getJiraClient } from "../client.js";
 import { handleToolError } from "../../../shared/errors.js";
 import { toTextResponse } from "../../../shared/response.js";
 import type { JiraIssue, JiraTransition, JiraUser } from "../types.js";
+import { textToAdf } from "../adf.js";
 
 const jiraFieldValueSchema = z.union([
   z.string(),
@@ -20,6 +21,12 @@ const jiraCustomFieldsSchema = z.record(
   z.string().regex(/^customfield_\d+$/, "Use Jira custom field IDs like customfield_10015."),
   jiraFieldValueSchema
 );
+
+// Markdown formatting + [~accountid:...] mentions are converted to ADF; the
+// syntax reference lives with the converter in ../adf.ts.
+const FORMAT_HINT =
+  " Supports Markdown (**bold**, *italic*, ++underline++, ~~strike~~, `code`, " +
+  "[text](url), lists, headings) and [~accountid:ACCOUNT_ID] to mention a user.";
 
 export function registerJiraTools(server: McpServer, prefix?: string): void {
   const p = (name: string) => (prefix ? `${prefix}_${name}` : name);
@@ -105,7 +112,7 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
         projectKey: z.string().describe("Project key, e.g. 'PROJ'"),
         summary: z.string().describe("Issue title/summary"),
         issueType: z.string().default("Task").describe("Issue type: 'Task', 'Bug', 'Story', 'Subtask', etc."),
-        description: z.string().optional().describe("Issue description (plain text)"),
+        description: z.string().optional().describe("Issue description." + FORMAT_HINT),
         assigneeAccountId: z.string().optional().describe("Assignee account ID"),
         parentKey: z.string().optional().describe("Parent issue key, e.g. 'PROJ-123'. Required when creating a subtask unless parentId is provided."),
         parentId: z.string().optional().describe("Parent issue ID. Required when creating a subtask unless parentKey is provided."),
@@ -120,10 +127,7 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
           issuetype: { name: issueType },
         };
         if (description) {
-          fields.description = {
-            type: "doc", version: 1,
-            content: [{ type: "paragraph", content: [{ type: "text", text: description }] }],
-          };
+          fields.description = textToAdf(description);
         }
         if (assigneeAccountId) fields.assignee = { accountId: assigneeAccountId };
 
@@ -147,7 +151,7 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
       inputSchema: z.object({
         issueIdOrKey: z.string().describe("Issue ID or key"),
         summary: z.string().optional().describe("New summary"),
-        description: z.string().optional().describe("New description (plain text)"),
+        description: z.string().optional().describe("New description." + FORMAT_HINT),
         assigneeAccountId: z.string().optional().describe("New assignee account ID"),
         priority: z.string().optional().describe("Priority name, e.g. 'High', 'Medium', 'Low'"),
         fields: jiraFieldsSchema.optional().describe("Additional Jira fields keyed by field ID or system field name, e.g. {\"labels\":[\"backend\"]}."),
@@ -159,10 +163,7 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
         const fields: Record<string, unknown> = {};
         if (summary) fields.summary = summary;
         if (description) {
-          fields.description = {
-            type: "doc", version: 1,
-            content: [{ type: "paragraph", content: [{ type: "text", text: description }] }],
-          };
+          fields.description = textToAdf(description);
         }
         if (assigneeAccountId) fields.assignee = { accountId: assigneeAccountId };
         if (priority) fields.priority = { name: priority };
@@ -258,19 +259,39 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
   server.registerTool(
     p("addCommentToJiraIssue"),
     {
-      description: "Post a comment on a Jira issue.",
+      description:
+        "Post a comment on a Jira issue. Resolve mention account IDs first via " +
+        "lookupJiraAccountId; mentioned users are notified.",
       inputSchema: z.object({
         issueIdOrKey: z.string().describe("Issue ID or key"),
-        comment: z.string().describe("Comment text"),
+        comment: z.string().describe("Comment text." + FORMAT_HINT),
       }),
     },
     async ({ issueIdOrKey, comment }) => {
       try {
         const { data } = await getJiraClient().post(`/issue/${issueIdOrKey}/comment`, {
-          body: {
-            type: "doc", version: 1,
-            content: [{ type: "paragraph", content: [{ type: "text", text: comment }] }],
-          },
+          body: textToAdf(comment),
+        });
+        return toTextResponse(data);
+      } catch (error) { return handleToolError(error); }
+    }
+  );
+
+  server.registerTool(
+    p("editJiraComment"),
+    {
+      description:
+        "Update the text of an existing comment on a Jira issue (get the comment ID from getJiraIssue).",
+      inputSchema: z.object({
+        issueIdOrKey: z.string().describe("Issue ID or key"),
+        commentId: z.string().describe("ID of the comment to edit"),
+        comment: z.string().describe("New comment text." + FORMAT_HINT),
+      }),
+    },
+    async ({ issueIdOrKey, commentId, comment }) => {
+      try {
+        const { data } = await getJiraClient().put(`/issue/${issueIdOrKey}/comment/${commentId}`, {
+          body: textToAdf(comment),
         });
         return toTextResponse(data);
       } catch (error) { return handleToolError(error); }
@@ -284,17 +305,14 @@ export function registerJiraTools(server: McpServer, prefix?: string): void {
       inputSchema: z.object({
         issueIdOrKey: z.string().describe("Issue ID or key"),
         timeSpent: z.string().describe("Time spent, e.g. '1h 30m', '2h', '30m'"),
-        comment: z.string().optional().describe("Optional work description"),
+        comment: z.string().optional().describe("Optional work description." + FORMAT_HINT),
       }),
     },
     async ({ issueIdOrKey, timeSpent, comment }) => {
       try {
         const body: Record<string, unknown> = { timeSpent };
         if (comment) {
-          body.comment = {
-            type: "doc", version: 1,
-            content: [{ type: "paragraph", content: [{ type: "text", text: comment }] }],
-          };
+          body.comment = textToAdf(comment);
         }
         const { data } = await getJiraClient().post(`/issue/${issueIdOrKey}/worklog`, body);
         return toTextResponse(data);
