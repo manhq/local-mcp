@@ -429,19 +429,22 @@ function openEditor(path: string): void {
   spawnAndInherit(editor, [path]);
 }
 
-// npm global packages are installed as .cmd wrappers on Windows.
-// Resolving them directly avoids shell dependency (works in cmd, PowerShell, Windows Terminal).
-const WINDOWS_NPM_COMMANDS = new Set(["npx", "npm", "claude", "codex"]);
-
-function resolveCommand(command: string): string {
-  if (process.platform === "win32" && WINDOWS_NPM_COMMANDS.has(command)) {
-    return `${command}.cmd`;
-  }
-  return command;
+// npm global packages (npx, claude, codex, ...) are .cmd shims on Windows, and Node
+// refuses to spawn .cmd/.bat without a shell since 18.20.2 (CVE-2024-27980) — it throws
+// EINVAL. Routing through cmd.exe also lets PATHEXT resolve the shim, so no .cmd suffix.
+// Args must be quoted ourselves because shell:true passes them to cmd.exe verbatim.
+function quoteForWindowsShell(arg: string): string {
+  if (arg === "") return '""';
+  if (!/[\s"^&|<>()]/.test(arg)) return arg;
+  return `"${arg.replace(/"/g, '""')}"`;
 }
 
 function spawnAndInherit(command: string, args: string[]): void {
-  const child = spawn(resolveCommand(command), args, { stdio: "inherit" });
+  // Pass one pre-quoted string rather than (command, args, {shell:true}), which warns (DEP0190).
+  const child =
+    process.platform === "win32"
+      ? spawn([command, ...args].map(quoteForWindowsShell).join(" "), { stdio: "inherit", shell: true })
+      : spawn(command, args, { stdio: "inherit" });
 
   child.on("error", (error) => {
     console.error(`Could not run ${command}: ${error.message}`);

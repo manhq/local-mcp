@@ -7,11 +7,12 @@ import { fileURLToPath } from "node:url";
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const distEntry = resolve(packageRoot, "dist/cli.js");
 
-const run = (command, args, cwd = process.cwd()) => {
+const run = (command, args, cwd = process.cwd(), useShell = false) => {
   const child = spawn(command, args, {
     cwd,
     stdio: "inherit",
     env: process.env,
+    shell: useShell,
   });
 
   child.on("exit", (code, signal) => {
@@ -27,5 +28,6 @@ const run = (command, args, cwd = process.cwd()) => {
 if (existsSync(distEntry)) {
   run(process.execPath, [distEntry, ...process.argv.slice(2)]);
 } else {
-  run("npx", ["tsx", "src/cli.ts", ...process.argv.slice(2)], packageRoot);
+  // npx is a .cmd shim on Windows; Node throws EINVAL unless it goes through a shell.
+  run("npx", ["tsx", "src/cli.ts", ...process.argv.slice(2)], packageRoot, process.platform === "win32");
 }
