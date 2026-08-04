@@ -28,16 +28,33 @@ interface InlineRule {
   render(match: RegExpExecArray, marks: Mark[]): AdfNode[];
 }
 
+// ADF rejects the whole document when `code` shares a text node with any other
+// mark except `link`, so a code span inside **bold** / *italic* / ~~strike~~
+// drops the surrounding marks instead of stacking them.
+function codeMarks(marks: Mark[]): Mark[] {
+  return [...marks.filter(m => m.type === "link"), { type: "code" }];
+}
+
+// ADF link hrefs must be absolute URIs; a relative path fails validation, so
+// those render as plain text instead.
+const ABSOLUTE_URI = /^[a-z][a-z0-9+.-]*:/i;
+
 // Ordered by priority: on a tie at the same index, the earlier rule wins, so
 // `**` (bold) is matched before `*` (italic) and code before everything.
 const INLINE_RULES: InlineRule[] = [
-  { re: /`([^`\n]+)`/g, render: (m, marks) => [textNode(m[1], [...marks, { type: "code" }])] },
+  { re: /`([^`\n]+)`/g, render: (m, marks) => [textNode(m[1], codeMarks(marks))] },
   { re: /\*\*\*([\s\S]+?)\*\*\*/g, render: (m, marks) => parseInline(m[1], [...marks, { type: "strong" }, { type: "em" }]) },
   { re: /\*\*([\s\S]+?)\*\*/g, render: (m, marks) => parseInline(m[1], [...marks, { type: "strong" }]) },
   { re: /\+\+([\s\S]+?)\+\+/g, render: (m, marks) => parseInline(m[1], [...marks, { type: "underline" }]) },
   { re: /~~([\s\S]+?)~~/g, render: (m, marks) => parseInline(m[1], [...marks, { type: "strike" }]) },
   { re: /\[~accountid:([^\]]+)\]/g, render: (m) => [{ type: "mention", attrs: { id: m[1] } }] },
-  { re: /\[([^\]\n]+)\]\(([^)\s]+)\)/g, render: (m, marks) => parseInline(m[1], [...marks, { type: "link", attrs: { href: m[2] } }]) },
+  {
+    re: /\[([^\]\n]+)\]\(([^)\s]+)\)/g,
+    render: (m, marks) =>
+      ABSOLUTE_URI.test(m[2])
+        ? parseInline(m[1], [...marks, { type: "link", attrs: { href: m[2] } }])
+        : parseInline(m[1], marks),
+  },
   { re: /\*([\s\S]+?)\*/g, render: (m, marks) => parseInline(m[1], [...marks, { type: "em" }]) },
 ];
 
